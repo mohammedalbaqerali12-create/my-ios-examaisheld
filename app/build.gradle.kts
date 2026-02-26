@@ -74,7 +74,6 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     kapt(libs.androidx.room.compiler)
-    kapt("org.xerial:sqlite-jdbc:3.36.0.3")
 
     // Testing
     testImplementation(libs.junit)
