@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">ExamShield AI - درع الاختبارات</string>
+    <string name="monitor_dashboard">لوحة المراقبة</string>
+    <string name="calibration_mode">مرحلة المعايرة</string>
+    <string name="scan_active">المسح نشط</string>
+    <string name="distance_far">بعيد (&gt;5م)</string>
+    <string name="distance_medium">متوسط (2-5م)</string>
+    <string name="distance_near">قريب (0.5-2م)</string>
+    <string name="distance_immediate">ملاصق (&lt;0.5م)</string>
+    <string name="device_smartphone">هاتف ذكي</string>
+    <string name="device_smartwatch">ساعة ذكية</string>
+    <string name="device_earbud">سماعة لاسلكية</string>
+    <string name="device_nano_earpiece">سماعة نانو (مخفية)</string>
+    <string name="device_unknown">جهاز مشبوه غير معروف</string>
+    <string name="risk_level_1">مستوى الخطر 1: إشارة مشبوهة</string>
+    <string name="risk_level_2">مستوى الخطر 2: كشف متكرر</string>
+    <string name="risk_level_3">مستوى الخطر 3: تطابق مكاني وسلوكي</string>
+    <string name="risk_level_4">مستوى الخطر 4: تهديد مؤكد</string>
+    <string name="confidence_score">الثقة: %1$d%%</string>
+    <string name="device_mac">الماك: %1$s</string>
+    <string name="rssi_value">قوة الإشارة: %1$d dBm</string>
+</resources>
