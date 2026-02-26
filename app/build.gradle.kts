@@ -47,7 +47,6 @@ kapt {
     arguments {
         arg("room.incremental", "true")
     }
-    systemProperty("java.io.tmpdir", buildDir.resolve("tmp").absolutePath)
 }
 
 dependencies {
