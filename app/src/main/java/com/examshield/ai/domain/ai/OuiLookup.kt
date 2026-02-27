@@ -32,15 +32,37 @@ object OuiLookup {
         "7C:B9:60" to "Anker", // Anker Innovations Limited (Soundcore)
         "00:1D:D7" to "Jabra" // GN Netcom A/S (Jabra)
     )
-
     /**
-     * Looks up the manufacturer based on the MAC address.
+     * Looks up the manufacturer based on the MAC address via an online API.
+     * Falls back to offline curated list if API fails or device is offline.
      * @param macAddress The full MAC address of the device.
      * @return The manufacturer name or null if not found.
      */
-    fun lookup(macAddress: String): String? {
-        if (macAddress.length < 8) return null
+    suspend fun lookup(macAddress: String): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (macAddress.length < 8) return@withContext null
+        
+        // 1. Try public MAC vendors API
+        try {
+            val url = java.net.URL("https://api.macvendors.com/$macAddress")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 3000
+            connection.readTimeout = 3000
+
+            if (connection.responseCode == 200) {
+                val scanner = java.util.Scanner(connection.inputStream)
+                if (scanner.hasNext()) {
+                    val vendorName = scanner.useDelimiter("\\A").next()
+                    return@withContext vendorName
+                }
+            }
+        } catch (e: Exception) {
+            // Network failed or rate limited (api.macvendors.com limits to 1 req/sec on free tier)
+            // Fallthrough to local mapping
+        }
+
+        // 2. Fall back to local map
         val prefix = macAddress.substring(0, 8).uppercase()
-        return ouiMap[prefix]
+        return@withContext ouiMap[prefix]
     }
 }

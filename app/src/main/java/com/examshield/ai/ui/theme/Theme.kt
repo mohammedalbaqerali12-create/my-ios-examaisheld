@@ -16,23 +16,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF64B5F6),
-    secondary = Color(0xFF4FC3F7),
-    tertiary = Color(0xFF81C784),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    onPrimary = Color.Black,
-    onSecondary = Color.Black,
-    onTertiary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF1976D2),
-    secondary = Color(0xFF0288D1),
-    tertiary = Color(0xFF388E3C)
+private val SpaceColorScheme = darkColorScheme(
+    primary = NeonCyan,
+    secondary = NebulaPurple,
+    tertiary = ThreatRed,
+    background = CosmicBackground,
+    surface = DarkMatterSurface,
+    onPrimary = CosmicBackground,
+    onSecondary = StarlightWhite,
+    onTertiary = StarlightWhite,
+    onBackground = StarlightWhite,
+    onSurface = StarlightWhite,
+    surfaceVariant = DarkMatterSurface,
+    onSurfaceVariant = StarlightWhite
 )
 
 @Composable
@@ -41,21 +37,14 @@ fun ExamShieldAITheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        // Force dark theme as per specifications ("Locked-down professional UI - Dark, non-distracting design")
-        else -> DarkColorScheme
-    }
-    
+    // Always use the space color scheme to enforce the sci-fi look regardless of phone system settings.
+    val colorScheme = SpaceColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 

@@ -1,47 +1,68 @@
 package com.examshield.ai.domain.ai
 
+import com.examshield.ai.data.local.model.Baseline
+import com.examshield.ai.data.local.model.Scan
 import com.examshield.ai.domain.model.DetectedObject
 import com.examshield.ai.domain.repository.LearningRepository
 import javax.inject.Inject
-import kotlin.math.min
+import java.util.concurrent.TimeUnit
 
 class AdaptiveLearningEngine @Inject constructor(
     private val learningRepository: LearningRepository
 ) {
 
+    // How far back to look for recent activity
+    private val RECENCY_THRESHOLD_MS = TimeUnit.MINUTES.toMillis(5)
+
     /**
-     * Re-weights the AI confidence score dynamically based on the environment's baseline 
-     * and historical supervisor reinforcements.
+     * Analyzes a detected object, updates the baseline, and returns context about it.
      */
-    suspend fun adjustConfidence(
-        detectedObject: DetectedObject,
-        baseConfidence: Int
-    ): Int {
-        var adjustedConfidence = baseConfidence
+    suspend fun analyze(detectedObject: DetectedObject): AnalysisContext {
+        // Record the raw scan
+        learningRepository.addScan(
+            Scan(
+                macAddress = detectedObject.macAddress,
+                deviceName = detectedObject.name,
+                timestamp = detectedObject.timestampMs,
+                signalStrength = detectedObject.signalStrengthRssi
+            )
+        )
 
-        // 1. Environmental Baseline Analysis (Calibration phase check)
-        // If the device was in the hall before the exam started, it is highly likely it's a safe device 
-        // (like a classroom projector, ceiling AP, or a legitimate campus Wi-Fi network).
-        val isInBaseline = learningRepository.isDeviceInCalibrationBaseline(detectedObject.macAddress)
-        if (isInBaseline) {
-            // Cut confidence massively, it is just environmental noise
-            adjustedConfidence = (adjustedConfidence * 0.2).toInt() // Reduce by 80%
-        }
+        val existingBaseline = learningRepository.getBaseline(detectedObject.macAddress)
+        val isNewDevice = existingBaseline == null
 
-        // 2. Supervisor Reinforcement Learning (Human-in-the-loop)
-        // Check if a supervisor previously confirmed this specific MAC address as a cheating device.
-        val confirmationCount = learningRepository.getSupervisorConfirmationCount(detectedObject.macAddress)
-        if (confirmationCount > 0) {
-            // If it was confirmed as a cheat before, confidence sky-rockets.
-            // Add 30% for the first confirmation, 50% for multiple.
-            val reinforcementBoost = if (confirmationCount == 1) 30 else 50
-            adjustedConfidence += reinforcementBoost
-        }
+        val newObservationCount = (existingBaseline?.observationCount ?: 0) + 1
 
-        // Note: Real TF-Lite models would also look at temporal behavior here
-        // (e.g., burst intervals, unexpected MAC changing). We simulate this adaptive thresholding.
+        val baseline = existingBaseline?.apply {
+            lastSeen = detectedObject.timestampMs
+            observationCount = newObservationCount
+        } ?: Baseline(
+            macAddress = detectedObject.macAddress,
+            firstSeen = detectedObject.timestampMs,
+            lastSeen = detectedObject.timestampMs,
+            observationCount = 1,
+            avgRssi = detectedObject.signalStrengthRssi.toDouble()
+        )
 
-        // Cap confidence between 0 and 100
-        return min(100, kotlin.math.max(0, adjustedConfidence))
+        learningRepository.updateBaseline(baseline)
+
+        val recentScans = learningRepository.getRecentScansForDevice(
+            detectedObject.macAddress, 
+            System.currentTimeMillis() - RECENCY_THRESHOLD_MS
+        )
+
+        return AnalysisContext(
+            isNew = isNewDevice,
+            observationCount = newObservationCount,
+            isFrequentlySeen = newObservationCount > 10, // Example threshold
+            isRepeatedlySeenRecently = recentScans.size > 3 // Example threshold
+        )
     }
 }
+
+data class AnalysisContext(
+    val isNew: Boolean,
+    val observationCount: Int,
+    val isFrequentlySeen: Boolean,
+    val isRepeatedlySeenRecently: Boolean
+)

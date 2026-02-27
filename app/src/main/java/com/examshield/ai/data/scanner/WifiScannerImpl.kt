@@ -53,7 +53,7 @@ class WifiScannerImpl @Inject constructor(
                     // (Android 9+ limits Wi-Fi scans to 4 per 2 minutes for foreground apps)
                     if (isScanningActive) {
                         launch {
-                            delay(10_000) 
+                            delay(2_000)
                             try {
                                 wifiManager.startScan()
                             } catch (e: Exception) {}

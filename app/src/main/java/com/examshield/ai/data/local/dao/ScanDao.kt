@@ -2,22 +2,23 @@ package com.examshield.ai.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.examshield.ai.data.local.entity.ScanEntity
+import com.examshield.ai.data.local.model.Scan
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ScanDao {
-    @Insert
-    suspend fun insertScan(scan: ScanEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertScan(scan: Scan)
 
     @Query("SELECT * FROM scan_history ORDER BY timestamp DESC")
-    fun getAllScans(): Flow<List<ScanEntity>>
+    fun getAllScans(): Flow<List<Scan>>
 
-    @Query("SELECT * FROM scan_history WHERE timestamp > :startTime")
-    suspend fun getRecentScans(startTime: Long): List<ScanEntity>
-
-    // Learning module query: get counts for confirmed patterns
-    @Query("SELECT COUNT(*) FROM scan_history WHERE macAddress = :mac AND isConfirmedBySupervisor = 1")
-    suspend fun getConfirmationCount(mac: String): Int
+    @Query("SELECT * FROM scan_history WHERE macAddress = :macAddress AND timestamp >= :since")
+    suspend fun getRecentScansForDevice(macAddress: String, since: Long): List<Scan>
+    
+    @Query("DELETE FROM scan_history WHERE timestamp < :time")
+    suspend fun pruneOldScans(time: Long)
 }

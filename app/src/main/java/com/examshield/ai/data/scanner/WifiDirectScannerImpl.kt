@@ -1,8 +1,10 @@
 package com.examshield.ai.data.scanner
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
-import android.net.wifi.p2p.WifiP2pDevice
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Looper
 import com.examshield.ai.domain.model.DetectedObject
@@ -19,24 +21,29 @@ class WifiDirectScannerImpl @Inject constructor(
     private val wifiP2pManager: WifiP2pManager? by lazy {
         context.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
     }
-
-    private var channel: WifiP2pManager.Channel? = null
+    private var p2pChannel: WifiP2pManager.Channel? = null
 
     @SuppressLint("MissingPermission")
     override fun startScanning(): Flow<DetectedObject> = callbackFlow {
-        if (wifiP2pManager == null) {
-            close(Exception("Wi-Fi P2P is not available on this device."))
+        val p2pManager = wifiP2pManager ?: run {
+            close()
             return@callbackFlow
         }
 
-        channel = wifiP2pManager?.initialize(context, Looper.getMainLooper(), null)
+        // Initialize the channel
+        val channel = p2pManager.initialize(context, Looper.getMainLooper(), null)
+        if (channel == null) {
+            close()
+            return@callbackFlow
+        }
+        p2pChannel = channel
 
         val peerListListener = WifiP2pManager.PeerListListener { peers ->
             peers.deviceList.forEach { device ->
                 val detectedObj = DetectedObject(
-                    macAddress = device.deviceAddress,
-                    name = device.deviceName,
-                    signalStrengthRssi = 0, // RSSI is not directly available for P2P devices in this API
+                    macAddress = device.deviceAddress ?: "UNKNOWN_P2P_MAC",
+                    name = device.deviceName ?: "Unknown P2P Device",
+                    signalStrengthRssi = -1, // RSSI not available for P2P
                     isWifi = true, // Categorize as Wi-Fi
                     isBle = false,
                     isClassicBluetooth = false,
@@ -46,24 +53,34 @@ class WifiDirectScannerImpl @Inject constructor(
             }
         }
 
-        wifiP2pManager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {
-                // Discovery initiated. Results will be delivered to the PeerListListener.
-                // We need to periodically request peers to get updates.
-                // However, for simplicity here, we rely on the initial discovery trigger.
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
+                        p2pManager.requestPeers(channel, peerListListener)
+                    }
+                }
             }
+        }
 
+        val intentFilter = IntentFilter(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
+        context.registerReceiver(receiver, intentFilter)
+
+        p2pManager.discoverPeers(channel, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() { /* Discovery initiated */ }
             override fun onFailure(reasonCode: Int) {
-                close(Exception("Failed to start Wi-Fi P2P discovery: $reasonCode"))
+                // Don't close the flow, just log the error or handle it.
+                // Log.e("WifiDirectScanner", "Failed to start discovery: $reasonCode")
             }
         })
 
         awaitClose {
-            wifiP2pManager?.stopPeerDiscovery(channel, null)
+            p2pManager.stopPeerDiscovery(channel, null)
+            context.unregisterReceiver(receiver)
         }
     }
 
     override fun stopScanning() {
-        wifiP2pManager?.stopPeerDiscovery(channel, null)
+        p2pChannel?.let { wifiP2pManager?.stopPeerDiscovery(it, null) }
     }
 }

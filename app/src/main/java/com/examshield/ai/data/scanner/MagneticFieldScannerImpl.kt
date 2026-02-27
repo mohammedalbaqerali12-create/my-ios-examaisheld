@@ -29,7 +29,7 @@ class MagneticFieldScannerImpl @Inject constructor(
 
     override fun startScanning(): Flow<DetectedObject> = callbackFlow {
         if (magnetometer == null) {
-            close(Exception("Magnetic field sensor is not available on this device."))
+            close()
             return@callbackFlow
         }
 

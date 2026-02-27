@@ -5,6 +5,7 @@ enum class DeviceType {
     SMARTWATCH,
     WIRELESS_EARBUD,
     NANO_EARPIECE,
+    MAGNETIC_ANOMALY,
     SUSPICIOUS_UNKNOWN
 }
 

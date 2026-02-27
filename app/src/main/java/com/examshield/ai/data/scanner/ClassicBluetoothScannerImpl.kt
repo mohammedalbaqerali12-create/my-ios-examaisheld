@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import com.examshield.ai.domain.model.DetectedObject
 import com.examshield.ai.domain.repository.Scanner
 import kotlinx.coroutines.channels.awaitClose
@@ -29,15 +30,21 @@ class ClassicBluetoothScannerImpl @Inject constructor(
     @SuppressLint("MissingPermission")
     override fun startScanning(): Flow<DetectedObject> = callbackFlow {
         if (bluetoothAdapter == null || !bluetoothAdapter!!.isEnabled) {
-            close(Exception("Bluetooth is not enabled or not available."))
+            // Do not throw exception, just close the flow so it doesn't crash the app
+            close()
             return@callbackFlow
         }
 
         val discoveryReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (intent.action == BluetoothDevice.ACTION_FOUND) {
-                    val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    val rssi: Int = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, BluetoothDevice.ERROR).toInt()
+                    val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    }
+                    val rssi: Int = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, BluetoothDevice.ERROR.toShort()).toInt()
                     
                     if (device != null) {
                         val detectedObj = DetectedObject(

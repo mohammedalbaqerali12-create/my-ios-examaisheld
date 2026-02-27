@@ -10,7 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.examshield.ai.ui.screens.MonitorScreen
+import com.examshield.ai.ui.screens.SignalFinderScreen
+import com.examshield.ai.ui.screens.MonitorScreenViewModel
 import com.examshield.ai.ui.theme.ExamShieldAITheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -19,8 +25,18 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // Handle denied permissions based on need
+    ) { permissions -> 
+        // After permissions, check if Bluetooth is actually enabled
+        checkAndEnableBluetooth()
+    }
+
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != android.app.Activity.RESULT_OK) {
+            android.widget.Toast.makeText(this, "Bluetooth is required.", android.widget.Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,12 +46,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ExamShieldAITheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MonitorScreen()
+                    val sharedViewModel: MonitorScreenViewModel = hiltViewModel()
+                    val navController = rememberNavController()
+                    NavHost(navController = navController, startDestination = "monitor") {
+                        composable("monitor") {
+                            MonitorScreen(navController = navController, viewModel = sharedViewModel)
+                        }
+                        composable("finder/{macAddress}") { backStackEntry ->
+                            SignalFinderScreen(
+                                macAddress = backStackEntry.arguments?.getString("macAddress") ?: "",
+                                viewModel = sharedViewModel
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -46,16 +73,25 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.RECORD_AUDIO
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
-            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            permissions.add(Manifest.permission.BLUETOOTH)
-            permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                add(Manifest.permission.BLUETOOTH)
+                add(Manifest.permission.BLUETOOTH_ADMIN)
+            }
         }
-
         requestPermissionLauncher.launch(permissions.toTypedArray())
+    }
+
+    private fun checkAndEnableBluetooth() {
+        val bluetoothManager = getSystemService(android.bluetooth.BluetoothManager::class.java)
+        val bluetoothAdapter = bluetoothManager?.adapter
+        
+        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled) {
+            val enableBtIntent = android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableBtIntent)
+        }
     }
 }

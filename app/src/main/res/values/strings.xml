@@ -1,22 +1,11 @@
 <resources>
     <string name="app_name">ExamShield AI</string>
     <string name="monitor_dashboard">Monitor Dashboard</string>
-    <string name="calibration_mode">Calibration Phase</string>
-    <string name="scan_active">Scanning Active</string>
-    <string name="distance_far">Far (>5m)</string>
-    <string name="distance_medium">Medium (2-5m)</string>
-    <string name="distance_near">Near (0.5-2m)</string>
-    <string name="distance_immediate">Immediate (&lt;0.5m)</string>
-    <string name="device_smartphone">Smartphone</string>
-    <string name="device_smartwatch">Smartwatch</string>
-    <string name="device_earbud">Wireless Earbud</string>
-    <string name="device_nano_earpiece">Nano Earpiece</string>
-    <string name="device_unknown">Suspicious Unknown</string>
-    <string name="risk_level_1">Suspicious Signal</string>
-    <string name="risk_level_2">Repeated Detection</string>
-    <string name="risk_level_3">Proximity Match</string>
-    <string name="risk_level_4">Confirmed Threat</string>
-    <string name="confidence_score">Confidence: %1$d%%</string>
+    <string name="system_idle">SYSTEM IDLE</string>
+    <string name="scan_active">Active Scan...</string>
+    <string name="action_start_scan">INITIATE SCAN</string>
+    <string name="action_stop_scan">STOP SCAN</string>
     <string name="device_mac">MAC: %1$s</string>
-    <string name="rssi_value">RSSI: %1$d dBm</string>
+    <string name="rssi_value">Signal: %1$d dBm</string>
+    <string name="estimated_distance">Distance: %1$.1fm</string>
 </resources>

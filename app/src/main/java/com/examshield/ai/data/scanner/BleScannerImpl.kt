@@ -60,7 +60,8 @@ class BleScannerImpl @Inject constructor(
 
             override fun onScanFailed(errorCode: Int) {
                 super.onScanFailed(errorCode)
-                close(Exception("BLE Scan failed with code: $errorCode"))
+                // Just close without exception to avoid crashing the Flow
+                close()
             }
         }
 

@@ -1,29 +1,32 @@
 package com.examshield.ai.domain.usecase
 
-import com.examshield.ai.domain.model.DistanceZone
+import javax.inject.Inject
 import kotlin.math.pow
 
-class EstimateDistanceUseCase {
+/**
+ * A use case for estimating the distance of a detected device based on its RSSI value.
+ */
+class EstimateDistanceUseCase @Inject constructor() {
 
     /**
-     * Estimates distance using the Log-Distance Path Loss Model.
-     * d = 10 ^ ((TxPower - RSSI) / (10 * N))
-     * N is the path loss exponent.
+     * Estimates the distance in meters.
+     *
+     * @param rssi The signal strength in dBm.
+     * @param txPower The average transmit power of the device at 1 meter, in dBm.
+     *                Common values are -59 for BLE, but can vary.
+     * @return The estimated distance in meters.
      */
-    fun execute(rssi: Int, txPower: Int = -59, environmentalFactor: Double = 3.0): Float {
-        if (rssi == 0) return -1f
-        
-        val ratio = (txPower - rssi).toDouble() / (10.0 * environmentalFactor)
-        return 10.0.pow(ratio).toFloat()
-    }
-
-    fun getDistanceZone(distance: Float): DistanceZone {
-        return when {
-            distance < 0f -> DistanceZone.FAR // invalid
-            distance < 0.5f -> DistanceZone.IMMEDIATE
-            distance < 2.0f -> DistanceZone.NEAR
-            distance < 5.0f -> DistanceZone.MEDIUM
-            else -> DistanceZone.FAR
+    operator fun invoke(rssi: Double, txPower: Int = -59): Double {
+        if (rssi == 0.0) {
+            return -1.0 // Cannot determine distance
+        }
+        // Environmental factor (N): ranges from 2.0 (open space) to 4.0 (obstructed)
+        val n = 2.5 
+        val ratio = rssi * 1.0 / txPower
+        if (ratio < 1.0) {
+            return ratio.pow(10)
+        } else {
+            return (0.89976) * ratio.pow(7.7095) + 0.111
         }
     }
 }
