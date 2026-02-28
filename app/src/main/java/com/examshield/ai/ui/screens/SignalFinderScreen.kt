@@ -14,6 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import com.examshield.ai.localization.*
 import com.examshield.ai.ui.visualization.*
 
@@ -33,86 +36,118 @@ fun SignalFinderScreen(
     val locState by viewModel.localizationState.collectAsState()
     val identifiedTargets by viewModel.localizationController.targetPoints.collectAsState()
     
-    val supervisorGps by viewModel.localizationController.currentGpsLoc.collectAsState()
     val targetGps by viewModel.localizationController.targetGps.collectAsState()
-    
+    val azureAzimuth by viewModel.azimuth.collectAsState()
     val samples = viewModel.getTrilaterationSamples()
+    
+    var isArMode by remember { mutableStateOf(false) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF030A12))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // High-Tech Localization Header
-        Text(
-            text = "نظام التموضع العالمي الهجين (Hybrid GPT-Engine)",
-            color = Color.Cyan,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp
-        )
-        Text(
-            text = targetDevice?.rawObject?.name ?: "بحث عن إشارة...",
-            color = Color.White,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Black
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // HYBRID GRID VIEW (GPS Mapped)
-        Box(
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .border(2.dp, Color.Cyan.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            HallGridView(
-                hall = currentHall,
-                supervisorPos = supervisorPos,
-                devicePos = estimatedPos,
-                errorRadius = errorRadius,
-                samples = samples,
-                identifiedTargets = identifiedTargets,
-                isWalkMode = locState == LocalizationState.WALK_SAMPLING_MODE,
-                modifier = Modifier.fillMaxSize()
+            // ... (rest of the header remains)
+            Text(
+                text = "نظام التموضع الراداري (Astra Nexus AR)",
+                color = Color.Cyan,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
             )
-            
-            HeatmapRenderer(
-                hall = currentHall,
-                targetPosition = estimatedPos,
-                confidence = (confidence.toFloat() / 100f),
-                modifier = Modifier.fillMaxSize()
+            Text(
+                text = targetDevice?.rawObject?.name ?: "بحث عن إشارة...",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
             
-            // GPS Tracker Pin
-            Surface(
-                color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.padding(12.dp).align(Alignment.BottomStart)
+            // MAIN VIEW AREA
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(2.dp, Color.Cyan.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Text("إحداثيات المشرف (GPS):", color = Color.Gray, fontSize = 8.sp)
-                    Text("${supervisorGps?.first ?: 0.0}, ${supervisorGps?.second ?: 0.0}", color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                if (isArMode) {
+                    // AR CAMERA VIEW
+                    CameraPreview(modifier = Modifier.fillMaxSize())
+                    SignalArOverlay(
+                        modifier = Modifier.fillMaxSize(),
+                        supervisorPos = supervisorPos,
+                        devicePos = estimatedPos,
+                        currentAzimuth = azureAzimuth
+                    )
+                    
+                    // AR HUD Info
+                    Text(
+                        "وضع الرؤية الرادارية: قم بالتوجيه نحو الهدف",
+                        color = Color.Green,
+                        fontSize = 10.sp,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(8.dp).background(Color.Black.copy(0.5f), RoundedCornerShape(4.dp)).padding(4.dp)
+                    )
+                } else {
+                    // GRID VIEW
+                    HallGridView(
+                        hall = currentHall,
+                        supervisorPos = supervisorPos,
+                        devicePos = estimatedPos,
+                        errorRadius = errorRadius,
+                        samples = samples,
+                        identifiedTargets = identifiedTargets,
+                        isWalkMode = locState == LocalizationState.WALK_SAMPLING_MODE,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    HeatmapRenderer(
+                        hall = currentHall,
+                        targetPosition = estimatedPos,
+                        confidence = (confidence.toFloat() / 100f),
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // GPS & AI STATUS DASHBOARD
+            LocalizationDashboard(
+                confidence = confidence,
+                errorRadius = errorRadius,
+                targetGps = targetGps,
+                locState = locState,
+                isArMode = isArMode,
+                onToggleWalkMode = {
+                    viewModel.localizationController.startWalkSampling()
+                },
+                onToggleArMode = {
+                    isArMode = !isArMode
+                }
+            )
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // GPS & AI STATUS DASHBOARD
-        LocalizationDashboard(
-            confidence = confidence,
-            errorRadius = errorRadius,
-            targetGps = targetGps,
-            locState = locState,
-            onToggleWalkMode = {
-                viewModel.localizationController.startWalkSampling()
+        
+        // Mode Switch Floating Button Label
+        if (isArMode) {
+            IconButton(
+                onClick = { isArMode = false },
+                modifier = Modifier.align(Alignment.TopStart).padding(24.dp).background(Color.Black.copy(0.4f), RoundedCornerShape(50))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close, 
+                    contentDescription = "Close AR", 
+                    tint = Color.White
+                )
             }
-        )
+        }
     }
 }
 
@@ -122,7 +157,9 @@ fun LocalizationDashboard(
     errorRadius: Float,
     targetGps: Pair<Double, Double>?,
     locState: LocalizationState,
-    onToggleWalkMode: () -> Unit
+    isArMode: Boolean,
+    onToggleWalkMode: () -> Unit,
+    onToggleArMode: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -154,6 +191,22 @@ fun LocalizationDashboard(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // AR SEEK BUTTON (Replace Google Maps)
+        Button(
+            onClick = onToggleArMode,
+            modifier = Modifier.fillMaxWidth().height(56.dp).padding(bottom = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isArMode) Color.Red else if (errorRadius < 1.5f) Color(0xFF00E676) else Color(0xFF424242)
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                if (isArMode) "إغلاق التتبع البصري" else if (errorRadius < 1.5f) "تفعيل التتبع البصري بالكاميرا (AR Seek)" else "انتظر اقتراب المسافة لتفعيل الكاميرا",
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
         // SINGLE AUTOMATIC BUTTON
         Button(
