@@ -100,9 +100,7 @@ class MonitorScreenViewModel @Inject constructor(
     fun markAsFriendly(result: ClassificationResult) {
         viewModelScope.launch {
             adaptiveLearningEngine.applySupervisorLogic(result, isCheating = false, environmentId = "Astra_Nexus_Hall_01")
-            val currentMap = _threatListMap.value.toMutableMap()
-            currentMap.remove(result.rawObject.macAddress)
-            _threatListMap.value = currentMap
+            ignoreDevice(result.rawObject.macAddress)
         }
     }
 

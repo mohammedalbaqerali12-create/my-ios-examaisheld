@@ -74,7 +74,24 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
             lowerName.contains("esp32") || lowerName.contains("hc-05") || lowerName.contains("hc-06") 
                 || lowerName.contains("ble-uart") || lowerName.contains("serial") || (manufacturer?.lowercase()?.contains("espressif") == true) -> DeviceType.NANO_EARPIECE
 
-            // Priority 3: Manufacturer Logic
+            // Mac Address Manufacturer identification via AI Logic mapped below:
+            manufacturer?.lowercase()?.let { mLower -> 
+                 mLower.contains("apple") || mLower.contains("samsung") || mLower.contains("google") ||
+                 mLower.contains("huawei") || mLower.contains("oppo") || mLower.contains("vivo") ||
+                 mLower.contains("realme") || mLower.contains("honor") ||
+                 mLower.contains("oneplus") || mLower.contains("motorola") || mLower.contains("xiaomi")
+            } == true -> DeviceType.SMARTPHONE
+            
+            manufacturer?.lowercase()?.let { mLower ->
+                mLower.contains("anker") || mLower.contains("jabra") || mLower.contains("bose") || mLower.contains("sony") ||
+                mLower.contains("sennheiser") || mLower.contains("beats") || mLower.contains("edifier") 
+            } == true -> DeviceType.WIRELESS_EARBUD
+            
+            manufacturer?.lowercase()?.let { mLower ->
+                mLower.contains("garmin") || mLower.contains("fitbit") || mLower.contains("suunto") || mLower.contains("polar")
+            } == true -> DeviceType.SMARTWATCH
+
+            // Priority 3: Contextual logic based on manufacturer
             manufacturer != null -> {
                 val mLower = manufacturer.lowercase()
                 when {
@@ -86,7 +103,6 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
                          else if (txPower < -70) DeviceType.WIRELESS_EARBUD
                          else DeviceType.SMARTWATCH
                     }
-                    mLower.contains("anker") || mLower.contains("jabra") || mLower.contains("bose") || mLower.contains("sony") -> DeviceType.WIRELESS_EARBUD
                     else -> if (isModernPhone) DeviceType.SMARTPHONE else DeviceType.SUSPICIOUS_UNKNOWN
                 }
             }
