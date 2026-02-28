@@ -29,7 +29,11 @@ class EstimateDistanceUseCase @Inject constructor(
      */
     fun calculateStabilityScore(rssiHistory: List<Int>): Double {
         if (rssiHistory.size < 2) return 0.0
-        val mean = rssiHistory.average()
-        return rssiHistory.map { (it - mean).pow(2) }.average()
+        val mean = rssiHistory.map { it.toDouble() }.sum() / rssiHistory.size
+        var sumSq = 0.0
+        for (item in rssiHistory) {
+            sumSq += Math.pow(item.toDouble() - mean, 2.0)
+        }
+        return sumSq / rssiHistory.size
     }
 }

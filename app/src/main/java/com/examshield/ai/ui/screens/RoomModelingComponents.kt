@@ -119,28 +119,28 @@ fun TaskSelectionPanel(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TaskButton(
-                name = "قطر محدد",
+                name = "غرفة صغيرة (5X5)",
                 icon = Icons.Default.Info,
-                isSelected = activeTask.type == TaskType.FOCUS_RADIUS,
-                onClick = { onTaskSelected(FocusTask(TaskType.FOCUS_RADIUS, true, parameter = 3f)) }
+                isSelected = activeTask.type == TaskType.FOCUS_RADIUS && activeTask.parameter == 5f,
+                onClick = { onTaskSelected(FocusTask(TaskType.FOCUS_RADIUS, true, parameter = 5f)) }
             )
             TaskButton(
-                name = "ركن معين",
+                name = "غرفة متوسطة (10X10)",
                 icon = Icons.Default.Info,
-                isSelected = activeTask.type == TaskType.SECTOR_FOCUS,
-                onClick = { onTaskSelected(FocusTask(TaskType.SECTOR_FOCUS, true, parameter = 1f)) }
+                isSelected = activeTask.type == TaskType.FOCUS_RADIUS && activeTask.parameter == 10f,
+                onClick = { onTaskSelected(FocusTask(TaskType.FOCUS_RADIUS, true, parameter = 10f)) }
             )
             TaskButton(
-                name = "مسح صفوف",
+                name = "قاعة (20X20)",
                 icon = Icons.Default.Lock,
-                isSelected = activeTask.type == TaskType.ROW_FOCUS,
-                onClick = { onTaskSelected(FocusTask(TaskType.ROW_FOCUS, true, parameter = 2f)) }
+                isSelected = activeTask.type == TaskType.FOCUS_RADIUS && activeTask.parameter == 20f,
+                onClick = { onTaskSelected(FocusTask(TaskType.FOCUS_RADIUS, true, parameter = 20f)) }
             )
             TaskButton(
-                name = "قفل دقيق",
-                icon = Icons.Default.Lock,
-                isSelected = activeTask.type == TaskType.PRECISION_LOCK,
-                onClick = { onTaskSelected(FocusTask(TaskType.PRECISION_LOCK, true)) }
+                name = "بدون فلتر (الكل)",
+                icon = Icons.Default.Info,
+                isSelected = !activeTask.isActive,
+                onClick = { onTaskSelected(FocusTask(TaskType.NONE, false)) }
             )
         }
     }

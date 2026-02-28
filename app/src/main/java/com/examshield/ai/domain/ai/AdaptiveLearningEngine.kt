@@ -65,8 +65,10 @@ class AdaptiveLearningEngine @Inject constructor(
         // Self-Learning: Calculate consistency of signal
         val signalVariance = if (recentScans.size > 2) {
             val rssis = recentScans.map { it.signalStrength }
-            val avg = rssis.average()
-            rssis.map { (it - avg) * (it - avg) }.average()
+            val avg = rssis.map { it.toDouble() }.sum() / rssis.size
+            var sumSq = 0.0
+            for (item in rssis) sumSq += Math.pow(item.toDouble() - avg, 2.0)
+            sumSq / rssis.size
         } else 100.0
 
         // Practice/Learning: Devices that appear in short predictable bursts are more likely to be cheating gear

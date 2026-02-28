@@ -53,16 +53,13 @@ fun MonitorScreen(
     val activeTask by viewModel.activeTask.collectAsState()
     var showTaskPanel by remember { mutableStateOf(false) }
 
-    if (showAdvisor) {
-        AIPerformanceAdvisorScreen(advisor = viewModel.performanceAdvisor, onBack = { showAdvisor = false })
-    } else {
-        Scaffold(
+    Scaffold(
             topBar = {
                 TopAppBar(
                     title = { 
                         Column {
                             Text("EXAMSHIELD_OPS", fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, fontSize = 16.sp)
-                            Text("TACTICAL SIGNAL INTELLIGENCE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                            Text("الذكاء الاصطناعي التكتيكي", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -77,7 +74,7 @@ fun MonitorScreen(
                     containerColor = if (isScanning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                     contentColor = Color.Black,
                     icon = { Icon(painterResource(if (isScanning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play), contentDescription = null) },
-                    text = { Text(if (isScanning) "ABORT SCAN" else "DEPLOY SCANNER", fontWeight = FontWeight.Black) }
+                    text = { Text(if (isScanning) "إيقاف المسح" else "نشر الرادار", fontWeight = FontWeight.Black) }
                 )
             }
         ) { paddingValues ->
@@ -88,7 +85,7 @@ fun MonitorScreen(
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp)
             ) {
-                SystemStatusPanel(isScanning, threatList.size, { showAdvisor = true }, { showTaskPanel = true })
+                SystemStatusPanel(isScanning, threatList.size, { showTaskPanel = true })
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -100,18 +97,12 @@ fun MonitorScreen(
                                 contentDescription = "App Logo",
                                 modifier = Modifier.size(120.dp).padding(16.dp).alpha(0.6f)
                             )
-                            Text("SYSTEM READY", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), letterSpacing = 4.sp, fontWeight = FontWeight.Thin)
-                            Text("AWAITING OPERATOR INPUT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), letterSpacing = 2.sp)
+                            Text("النظام جاهز", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), letterSpacing = 4.sp, fontWeight = FontWeight.Thin)
+                            Text("بانتظار تفعيل الرادار", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), letterSpacing = 2.sp)
                         }
                     }
                 } else if (isScanning) {
-                    // 2D ROOM VISUALIZATION
-                    RoomLayoutView(
-                         roomProfile = roomProfile,
-                         seats = seats,
-                         activeThreats = threatList,
-                         modifier = Modifier.height(200.dp).padding(vertical = 12.dp)
-                    )
+                    // Room Layout View Removed
                 }
                 
                 if (showTaskPanel) {
@@ -142,12 +133,11 @@ fun MonitorScreen(
                 }
             }
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onAdvisorClick: () -> Unit, onTaskClick: () -> Unit) {
+fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onTaskClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -156,26 +146,12 @@ fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onAdvisorClick: () 
             .padding(16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            StatusIndicator("SENSOR STATUS", if (isScanning) "ACTIVE" else "IDLE", if (isScanning) Color.Green else Color.Gray)
-            StatusIndicator("THREATS FOUND", threatCount.toString(), if (threatCount > 0) com.examshield.ai.ui.theme.ThreatRed else Color.White)
-            StatusIndicator("AI NEXUS", if (isScanning) "ONLINE" else "WAITING", MaterialTheme.colorScheme.primary)
+            StatusIndicator("حالة المستشعرات", if (isScanning) "نشط" else "خامل", if (isScanning) Color.Green else Color.Gray)
+            StatusIndicator("إشارات مكتشفة", threatCount.toString(), if (threatCount > 0) com.examshield.ai.ui.theme.ThreatRed else Color.White)
+            StatusIndicator("نظام AI الذكي", if (isScanning) "متصل" else "بانتظار", MaterialTheme.colorScheme.primary)
         }
-        
         Spacer(modifier = Modifier.height(12.dp))
         
-        Button(
-            onClick = onAdvisorClick,
-            modifier = Modifier.fillMaxWidth().height(36.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray.copy(alpha = 0.4f)),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Cyan)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("AI Advisor", color = Color.White, fontSize = 10.sp)
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-
         Button(
             onClick = onTaskClick,
             modifier = Modifier.fillMaxWidth().height(36.dp),
@@ -184,7 +160,7 @@ fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onAdvisorClick: () 
         ) {
             Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Task Panel (لوحة المهام)", color = Color.White, fontSize = 10.sp)
+            Text("نطاق ومجال البحث المخصص (لوحة المهام)", color = Color.White, fontSize = 10.sp)
         }
     }
 }
@@ -267,7 +243,7 @@ fun ThreatCard(threat: ClassificationResult, navController: NavController, viewM
                         color = borderColor
                     )
                     Text(
-                        text = "MATCH",
+                        text = "تطابق",
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 8.sp,
                         color = borderColor.copy(alpha = 0.6f)

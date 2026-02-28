@@ -51,8 +51,8 @@ class DetectionServiceImpl(
             .map { detectedObj ->
                 // Memory Management
                 if (Math.random() < 0.001) {
-                    if (kalmanFilters.size > 200) {
-                        kalmanFilters.clear()
+                    if (ekfFilters.size > 200) {
+                        ekfFilters.clear()
                         rssiHistory.clear()
                     }
                 }
@@ -107,12 +107,13 @@ class DetectionServiceImpl(
                 val stability = calculateStability(rssiHistory[detectedObj.macAddress] ?: emptyList())
                 val callbacks = callbackCounts.getOrDefault(detectedObj.macAddress, 0)
                 
-                val confidence = com.examshield.ai.domain.ai.localizationConfidenceEngine.calculateScore(
-                    stability = stability,
-                    motionConsistency = if (deltaAzimuth < 5.0) 1.0 else 0.5,
-                    temporalPersistence = (callbacks / 2).coerceAtMost(15), 
-                    isWithinRoom = finalResult.estimatedDistanceMeters < 15.0 // Approximation
-                )
+                val tempConfidenceBase = if (baseClassification.confidenceScore > 0) baseClassification.confidenceScore else 50
+                var confidenceMod = 0
+                if (stability < 3.0) confidenceMod += 15
+                if (finalResult.estimatedDistanceMeters < 3.0) confidenceMod += 10
+                if (callbacks > 5) confidenceMod += 5
+                
+                val confidence = (tempConfidenceBase + confidenceMod).coerceIn(0, 100)
 
                 finalResult = finalResult.copy(
                     confidenceScore = confidence,
@@ -165,7 +166,7 @@ class DetectionServiceImpl(
         val history = rssiHistory.getOrPut(macAddress) { mutableListOf() }
         var inputRssi = currentRssi.toDouble()
         if (history.size > 3) {
-            val lastAvg = history.takeLast(3).average()
+            val lastAvg = history.takeLast(3).map { it.toDouble() }.average()
             if (Math.abs(inputRssi - lastAvg) > 8.0) {
                 inputRssi = lastAvg * 0.7 + inputRssi * 0.3 // Dampened spike
                 android.util.Log.d("ASTRA_NEXUS", "Outlier Rejected for $macAddress: Delta=${Math.abs(currentRssi - lastAvg)}")
@@ -187,15 +188,19 @@ class DetectionServiceImpl(
         }
         
         val alpha = if (deltaAzimuth > 10.0) 0.8 else 0.4
-        val mean = history.average()
+        val mean = history.map { it.toDouble() }.average()
         
         return (smoothed * alpha + mean * (1.0 - alpha)).toInt()
     }
 
     private fun calculateStability(history: List<Int>): Double {
         if (history.size < 2) return 5.0
-        val avg = history.average()
-        return kotlin.math.sqrt(history.map { (it.toDouble() - avg).pow(2.0) }.average())
+        val avg = history.map { it.toDouble() }.sum() / history.size
+        var sumSq = 0.0
+        for (item in history) {
+            sumSq += Math.pow(item.toDouble() - avg, 2.0)
+        }
+        return kotlin.math.sqrt(sumSq / history.size)
     }
 
     private fun updateAllScannersIntensity(intensity: com.examshield.ai.domain.repository.ScanIntensity) {

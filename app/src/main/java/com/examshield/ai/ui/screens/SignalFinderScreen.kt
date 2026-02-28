@@ -45,6 +45,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.abs
 
+data class RssiRecord(val rssi: Int, val timestamp: Long)
+
 @Composable
 fun SignalFinderScreen(
     macAddress: String,
@@ -139,7 +141,6 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
 
     // --- INTENSITY & LOCK TRACKING ---
     val signalContext = androidx.compose.ui.platform.LocalContext.current
-    data class RssiRecord(val rssi: Int, val timestamp: Long)
     val rssiHistoryList = remember { mutableStateListOf<RssiRecord>() }
     var maxHistoryRssi by remember { mutableIntStateOf(-100) }
     
@@ -207,8 +208,10 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 // --- ASTRA NEXUS SYNERGY FEED ---
                 val rHistory = rssiHistoryList.map { it.rssi }
                 val stabilityScore = if (rHistory.size > 2) {
-                    val mean = rHistory.average()
-                    rHistory.map { Math.pow((it - mean).toDouble(), 2.0) }.average()
+                    val mean = rHistory.map { it.toDouble() }.sum() / rHistory.size
+                    var sumSq = 0.0
+                    for (item in rHistory) sumSq += Math.pow((item - mean).toDouble(), 2.0)
+                    sumSq / rHistory.size
                 } else 0.0
                 
                 aiStatus = when {
@@ -226,8 +229,10 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 rssiHistoryList.removeAll { now - it.timestamp > 15000 }
                 
                 val variance = if (rssiHistoryList.size > 2) {
-                    val mean = rssiHistoryList.map { it.rssi }.average()
-                    rssiHistoryList.map { Math.pow((it.rssi - mean), 2.0) }.average()
+                    val mean = rssiHistoryList.map { it.rssi.toDouble() }.sum() / rssiHistoryList.size
+                    var sumSq = 0.0
+                    for (item in rssiHistoryList) sumSq += Math.pow((item.rssi - mean).toDouble(), 2.0)
+                    sumSq / rssiHistoryList.size
                 } else 0.0
                 
                 // --- ASTRA PERFORMANCE ADVISOR FEED ---
@@ -255,7 +260,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
             // High-Tech Header
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                  Text(
-                    text = "ASTRA INTERCEPTOR V4",
+                    text = "نظام استهداف ذكي V4",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Cyan.copy(alpha = 0.6f),
                     letterSpacing = 4.sp
@@ -269,7 +274,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 )
                 if (isLocked) {
                     Text(
-                        text = ">>> TARGET LOCKED <<<",
+                        text = ">>> تم قفل الهدف <<<",
                         style = MaterialTheme.typography.labelLarge,
                         color = Color.Red,
                         fontWeight = FontWeight.Bold
@@ -406,15 +411,15 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
             ) {
                 val rHistory = rssiHistoryList.map { it.rssi }
                 val stabilityVal = if (rHistory.size > 2) {
-                    val mean = rHistory.average()
-                    rHistory.map { Math.pow((it - mean).toDouble(), 2.0) }.average()
+                    val mean = rHistory.map { it.toDouble() }.average()
+                    rHistory.map { Math.pow((it - mean).toDouble(), 2.0) }.sum() / rHistory.size
                 } else 10.0
                 
-                StatusRow("CALIBRATED DISTANCE", "${"%.2f".format(liveDistance)} METERS", Color.White)
-                StatusRow("SIGNAL STABILITY", if (stabilityVal < 3.0) "STABLE" else if (stabilityVal < 10.0) "FLUCTUATING" else "UNSTABLE", if (stabilityVal < 3.0) Color.Green else if (stabilityVal < 10.0) Color.Yellow else Color.Red)
-                StatusRow("SIGNAL INTENSITY", "${(currentIntensity * 100).toInt()}%", if (isLocked) Color.Red else Color.Cyan)
-                StatusRow("SIGNAL POWER", "$liveRssi dBm", if (liveRssi > -60) Color.Red else Color.Gray)
-                StatusRow("HUNT STATUS", if (liveReason.contains("PRECISION_LOCK")) "PRECISION_LOCK" else if (isLocked) "PEAK INTENSITY" else "SCANNING AREA", if (isLocked || liveReason.contains("PRECISION_LOCK")) Color.Red else Color.Gray)
+                StatusRow("المسافة المقدرة", "${"%.2f".format(liveDistance)} متر", Color.White)
+                StatusRow("استقرار الإشارة", if (stabilityVal < 3.0) "مستقر" else if (stabilityVal < 10.0) "متذبذب" else "غير مستقر", if (stabilityVal < 3.0) Color.Green else if (stabilityVal < 10.0) Color.Yellow else Color.Red)
+                StatusRow("كثافة الإشارة", "${(currentIntensity * 100).toInt()}%", if (isLocked) Color.Red else Color.Cyan)
+                StatusRow("قوة الإشارة", "$liveRssi dBm", if (liveRssi > -60) Color.Red else Color.Gray)
+                StatusRow("حالة التتبع", if (liveReason.contains("PRECISION_LOCK")) "قفل دقيق" else if (isLocked) "ذروة الكثافة" else "مسح المنطقة", if (isLocked || liveReason.contains("PRECISION_LOCK")) Color.Red else Color.Gray)
                 
                 if (rssiHistoryList.size < 5) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -422,7 +427,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                         modifier = Modifier.fillMaxWidth().background(Color.Yellow.copy(alpha = 0.1f)).padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("CALIBRATING SENSORS: MOVE AROUND", color = Color.Yellow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("معايرة المستشعرات: يرجى التحرك قليلاً", color = Color.Yellow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 
@@ -449,7 +454,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = ">>> ROTATE 360° TO PINPOINT TARGET <<<",
+                            text = ">>> دُر 360 درجة لتحديد الهدف <<<",
                             color = Color.Yellow,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
@@ -509,7 +514,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "SIGNAL_SIGNATURE_ANALYSIS",
+                        "تحليل بصمة الإشارة",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.3f)
                     )
@@ -534,7 +539,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 }
     
                 Spacer(modifier = Modifier.height(16.dp))
-                StatusRow("IDENT_CONFIDENCE", "$liveConfidence%", if (liveConfidence > 80) Color.Green else Color.Yellow)
+                StatusRow("نسبة الثقة", "$liveConfidence%", if (liveConfidence > 80) Color.Green else Color.Yellow)
             }
         }
 
@@ -548,7 +553,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 .padding(12.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("ASTRA_HEALTH_DIAGNOSTIC", color = Color.Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("صحة النظام والتشخيص", color = Color.Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Canvas(modifier = Modifier.fillMaxWidth().height(1.dp)) {
                     drawLine(Color.Green.copy(alpha = 0.5f), Offset.Zero, Offset(size.width, 0f), 1f)
                 }
@@ -558,8 +563,8 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 
                 val rHistory = rssiHistoryList.map { it.rssi }
                 val variance = if (rHistory.size > 2) {
-                    val mean = rHistory.average()
-                    rHistory.map { Math.pow((it - mean).toDouble(), 2.0) }.average()
+                    val mean = rHistory.map { it.toDouble() }.average()
+                    rHistory.map { Math.pow((it - mean).toDouble(), 2.0) }.sum() / rHistory.size
                 } else 0.0
                 DiagnosticItem("RSSI_VARIANCE", "%.2f".format(variance), if (variance < 10.0) Color.Green else Color.Yellow)
                 
@@ -570,7 +575,7 @@ fun SignalStrengthIndicator(classification: ClassificationResult, viewModel: Mon
                 DiagnosticItem("SENSOR_RATE", "${updateRate}ms", Color.Yellow)
                 
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("PIPELINE: ACTIVE", color = if (refreshRate > 0) Color.Green else Color.Red, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                Text("خط الأوامر: نشط", color = if (refreshRate > 0) Color.Green else Color.Red, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
             }
         }
     }
