@@ -32,6 +32,8 @@ object OuiLookup {
         "7C:B9:60" to "Anker", // Anker Innovations Limited (Soundcore)
         "00:1D:D7" to "Jabra" // GN Netcom A/S (Jabra)
     )
+    private val lookupCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     /**
      * Looks up the manufacturer based on the MAC address via an online API.
      * Falls back to offline curated list if API fails or device is offline.
@@ -41,28 +43,61 @@ object OuiLookup {
     suspend fun lookup(macAddress: String): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         if (macAddress.length < 8) return@withContext null
         
-        // 1. Try public MAC vendors API
+        // 0. Check Cache First
+        lookupCache[macAddress]?.let { return@withContext it }
+        
+        // 1. Try Primary API (macvendors.com)
         try {
-            val url = java.net.URL("https://api.macvendors.com/$macAddress")
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 3000
-            connection.readTimeout = 3000
-
-            if (connection.responseCode == 200) {
-                val scanner = java.util.Scanner(connection.inputStream)
-                if (scanner.hasNext()) {
-                    val vendorName = scanner.useDelimiter("\\A").next()
-                    return@withContext vendorName
-                }
+            val result = fetchUrl("https://api.macvendors.com/$macAddress")
+            if (!result.isNullOrBlank()) {
+                lookupCache[macAddress] = result
+                return@withContext result
             }
         } catch (e: Exception) {
-            // Network failed or rate limited (api.macvendors.com limits to 1 req/sec on free tier)
-            // Fallthrough to local mapping
+            // Priority 1.5: Try Backup MAC API 1 (macaddress.io - JSON format)
+            try {
+                val json = fetchUrl("https://api.macaddress.io/v1?apiKey=at_0_MOCK_KEY&output=json&search=$macAddress")
+                // Simple regex extraction for vendorName if JSON library isn't available
+                val match = "\"vendorName\":\"([^\"]+)\"".toRegex().find(json ?: "")
+                match?.groupValues?.get(1)?.let {
+                    lookupCache[macAddress] = it
+                    return@withContext it
+                }
+            } catch (e2: Exception) {
+                // Priority 1.6: Try Backup MAC API 2 (macvendor.io)
+                try {
+                    val vendor = fetchUrl("https://macvendor.io/api/vendor/$macAddress")
+                    if (!vendor.isNullOrBlank() && !vendor.contains("error")) {
+                         lookupCache[macAddress] = vendor
+                         return@withContext vendor
+                    }
+                } catch (e3: Exception) {}
+            }
         }
 
         // 2. Fall back to local map
         val prefix = macAddress.substring(0, 8).uppercase()
-        return@withContext ouiMap[prefix]
+        val localVendor = ouiMap[prefix]
+        if (localVendor != null) {
+            lookupCache[macAddress] = localVendor
+            return@withContext localVendor
+        }
+
+        return@withContext null
+    }
+
+    private fun fetchUrl(urlString: String): String? {
+        return try {
+            val url = java.net.URL(urlString)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 2000
+            connection.readTimeout = 2000
+            if (connection.responseCode == 200) {
+                java.util.Scanner(connection.inputStream).useDelimiter("\\A").next()
+            } else null
+        } catch (e: Exception) {
+            null
+        }
     }
 }

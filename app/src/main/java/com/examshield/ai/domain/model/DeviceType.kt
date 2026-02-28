@@ -23,3 +23,9 @@ enum class RiskLevel {
     LEVEL_3_PROXIMITY_MATCH,
     LEVEL_4_CONFIRMED_THREAT
 }
+
+enum class SupervisorFeedback {
+    PENDING,
+    FRIENDLY,
+    CHEATING
+}

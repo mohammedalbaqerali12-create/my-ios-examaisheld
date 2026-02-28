@@ -6,5 +6,10 @@ data class ClassificationResult(
     val distanceZone: DistanceZone,
     val estimatedDistanceMeters: Float,
     val riskLevel: RiskLevel,
-    val rawObject: DetectedObject
+    val discoveryReason: String = "",
+    val rawObject: DetectedObject,
+    // ASTRA NEXUS: Synergy components
+    val isNexusVerified: Boolean = false,
+    val synergyScore: Int = 0,
+    val feedback: SupervisorFeedback = SupervisorFeedback.PENDING
 )

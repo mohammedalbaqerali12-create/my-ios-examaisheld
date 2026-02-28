@@ -55,7 +55,8 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "examshield-ai-db"
-        ).build()
+        ).fallbackToDestructiveMigration()
+         .build()
     }
 
     @Provides
@@ -68,17 +69,62 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideEstimateDistanceUseCase(): EstimateDistanceUseCase {
-        return EstimateDistanceUseCase()
+    fun provideLearnedRuleDao(database: AppDatabase): com.examshield.ai.data.local.dao.LearnedRuleDao = database.learnedRuleDao()
+
+    @Provides
+    @Singleton
+    fun provideFriendlySignalDao(database: AppDatabase): com.examshield.ai.data.local.dao.FriendlySignalDao = database.friendlySignalDao()
+
+    @Provides
+    @Singleton
+    fun provideConfirmedCheatingSignalDao(database: AppDatabase): com.examshield.ai.data.local.dao.ConfirmedCheatingSignalDao = database.confirmedCheatingSignalDao()
+
+    @Provides
+    @Singleton
+    fun provideSignalDecisionDao(database: AppDatabase): com.examshield.ai.data.local.dao.SignalDecisionDao = database.signalDecisionDao()
+
+    @Provides
+    @Singleton
+    fun provideRoomModelingDao(database: AppDatabase): com.examshield.ai.data.local.dao.RoomModelingDao = database.roomModelingDao()
+// Riverside: Registering RoomModelingDao for persistence.
+    @Provides
+    @Singleton
+    fun provideRoomModelingEngine(): com.examshield.ai.domain.ai.RoomModelingEngine {
+        return com.examshield.ai.domain.ai.RoomModelingEngine()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFocusTaskManager(): com.examshield.ai.domain.ai.FocusTaskManager {
+        return com.examshield.ai.domain.ai.FocusTaskManager()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEstimateDistanceUseCase(
+        roomModelingEngine: com.examshield.ai.domain.ai.RoomModelingEngine
+    ): EstimateDistanceUseCase {
+        return EstimateDistanceUseCase(roomModelingEngine)
     }
 
     @Provides
     @Singleton
     fun provideLearningRepository(
         scanDao: com.examshield.ai.data.local.dao.ScanDao,
-        baselineDao: com.examshield.ai.data.local.dao.BaselineDao
+        baselineDao: com.examshield.ai.data.local.dao.BaselineDao,
+        learnedRuleDao: com.examshield.ai.data.local.dao.LearnedRuleDao,
+        friendlySignalDao: com.examshield.ai.data.local.dao.FriendlySignalDao,
+        confirmedCheatingSignalDao: com.examshield.ai.data.local.dao.ConfirmedCheatingSignalDao,
+        signalDecisionDao: com.examshield.ai.data.local.dao.SignalDecisionDao
     ): com.examshield.ai.domain.repository.LearningRepository {
-        return com.examshield.ai.data.repository.LearningRepositoryImpl(scanDao, baselineDao)
+        return com.examshield.ai.data.repository.LearningRepositoryImpl(
+            scanDao, 
+            baselineDao, 
+            learnedRuleDao, 
+            friendlySignalDao, 
+            confirmedCheatingSignalDao, 
+            signalDecisionDao
+        )
     }
 
     @Provides
@@ -93,9 +139,10 @@ object AppModule {
     @Singleton
     fun provideDeviceClassifier(
         useCase: EstimateDistanceUseCase,
-        adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine
+        adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
+        aiIntelligenceService: com.examshield.ai.domain.ai.AiIntelligenceService
     ): DeviceClassifier {
-        return TFLiteDeviceClassifierImpl(useCase, adaptiveLearningEngine)
+        return TFLiteDeviceClassifierImpl(useCase, adaptiveLearningEngine, aiIntelligenceService)
     }
 
     @Provides
@@ -135,13 +182,27 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideOrientationScanner(@ApplicationContext context: Context): com.examshield.ai.data.scanner.OrientationScannerImpl {
+        return com.examshield.ai.data.scanner.OrientationScannerImpl(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiIntelligenceService(): com.examshield.ai.domain.ai.AiIntelligenceService {
+        return com.examshield.ai.data.remote.OpenAiIntelligenceServiceImpl()
+    }
+
+    @Provides
+    @Singleton
     fun provideDetectionService(
         @BluetoothLeScanner bleScanner: Scanner,
         @ClassicBluetoothScanner classicBluetoothScanner: Scanner,
         @WifiScanner wifiScanner: Scanner,
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
-        classifier: DeviceClassifier
+        orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
+        classifier: DeviceClassifier,
+        focusTaskManager: com.examshield.ai.domain.ai.FocusTaskManager
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -149,7 +210,9 @@ object AppModule {
             wifiScanner = wifiScanner,
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
-            classifier = classifier
+            orientationScanner = orientationScanner,
+            classifier = classifier,
+            focusTaskManager = focusTaskManager
         )
     }
 }

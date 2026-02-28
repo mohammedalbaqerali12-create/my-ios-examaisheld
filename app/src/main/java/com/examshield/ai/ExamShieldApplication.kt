@@ -7,6 +7,6 @@ import dagger.hilt.android.HiltAndroidApp
 class ExamShieldApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Initialization logic for crash reporting, logging base line environment can start here.
+        com.examshield.ai.util.ContextUtils.init(this)
     }
 }

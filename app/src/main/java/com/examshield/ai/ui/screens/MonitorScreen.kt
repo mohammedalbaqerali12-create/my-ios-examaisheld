@@ -7,15 +7,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -41,79 +46,109 @@ fun MonitorScreen(
 ) {
     val isScanning by viewModel.isScanning.collectAsState()
     val threatList by viewModel.threatList.collectAsState()
+    var showAdvisor by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val roomProfile by viewModel.roomProfile.collectAsState()
+    val seats by viewModel.seatGrid.collectAsState()
+    val activeTask by viewModel.activeTask.collectAsState()
+    var showTaskPanel by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Column {
-                        Text("EXAMSHIELD_OPS", fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, fontSize = 16.sp)
-                        Text("TACTICAL SIGNAL INTELLIGENCE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = Color.White
+    if (showAdvisor) {
+        AIPerformanceAdvisorScreen(advisor = viewModel.performanceAdvisor, onBack = { showAdvisor = false })
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Column {
+                            Text("EXAMSHIELD_OPS", fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp, fontSize = 16.sp)
+                            Text("TACTICAL SIGNAL INTELLIGENCE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White
+                    )
                 )
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { viewModel.toggleScan() },
-                containerColor = if (isScanning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                contentColor = Color.Black,
-                icon = { Icon(painterResource(if (isScanning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play), contentDescription = null) },
-                text = { Text(if (isScanning) "ABORT SCAN" else "DEPLOY SCANNER", fontWeight = FontWeight.Black) }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-        ) {
-            SystemStatusPanel(isScanning, threatList.size)
-            
-            Spacer(modifier = Modifier.height(24.dp))
+            },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = { viewModel.toggleScan() },
+                    containerColor = if (isScanning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    contentColor = Color.Black,
+                    icon = { Icon(painterResource(if (isScanning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play), contentDescription = null) },
+                    text = { Text(if (isScanning) "ABORT SCAN" else "DEPLOY SCANNER", fontWeight = FontWeight.Black) }
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp)
+            ) {
+                SystemStatusPanel(isScanning, threatList.size, { showAdvisor = true }, { showTaskPanel = true })
+                
+                Spacer(modifier = Modifier.height(24.dp))
 
-            if (!isScanning && threatList.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(id = R.mipmap.ic_app_logo_modern),
-                            contentDescription = "App Logo",
-                            modifier = Modifier.size(120.dp).padding(16.dp).alpha(0.6f)
+                if (!isScanning && threatList.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Image(
+                                painter = painterResource(id = R.mipmap.ic_app_logo_modern),
+                                contentDescription = "App Logo",
+                                modifier = Modifier.size(120.dp).padding(16.dp).alpha(0.6f)
+                            )
+                            Text("SYSTEM READY", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), letterSpacing = 4.sp, fontWeight = FontWeight.Thin)
+                            Text("AWAITING OPERATOR INPUT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), letterSpacing = 2.sp)
+                        }
+                    }
+                } else if (isScanning) {
+                    // 2D ROOM VISUALIZATION
+                    RoomLayoutView(
+                         roomProfile = roomProfile,
+                         seats = seats,
+                         activeThreats = threatList,
+                         modifier = Modifier.height(200.dp).padding(vertical = 12.dp)
+                    )
+                }
+                
+                if (showTaskPanel) {
+                    ModalBottomSheet(onDismissRequest = { showTaskPanel = false }, containerColor = com.examshield.ai.ui.theme.DarkMatterSurface) {
+                        TaskSelectionPanel(
+                            activeTask = activeTask,
+                            onTaskSelected = { 
+                                viewModel.focusTaskManager.setTask(it)
+                                showTaskPanel = false 
+                            }
                         )
-                        Text("SYSTEM READY", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), letterSpacing = 4.sp, fontWeight = FontWeight.Thin)
-                        Text("AWAITING OPERATOR INPUT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), letterSpacing = 2.sp)
                     }
                 }
-            }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 100.dp)
-            ) {
-                items(threatList.sortedByDescending { it.confidenceScore }) { threat ->
-                    // Trigger Haptic on High Risk proximity
-                    if (threat.riskLevel == RiskLevel.LEVEL_4_CONFIRMED_THREAT) {
-                         androidx.compose.runtime.LaunchedEffect(threat.rawObject.macAddress) {
-                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                         }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(threatList.sortedByDescending { it.confidenceScore }) { threat ->
+                        // Trigger Haptic on High Risk proximity
+                        if (threat.riskLevel == RiskLevel.LEVEL_4_CONFIRMED_THREAT) {
+                             LaunchedEffect(threat.rawObject.macAddress) {
+                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                             }
+                        }
+                        ThreatCard(threat = threat, navController = navController, viewModel = viewModel)
                     }
-                    ThreatCard(threat = threat, navController = navController)
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SystemStatusPanel(isScanning: Boolean, threatCount: Int) {
-    Box(
+fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onAdvisorClick: () -> Unit, onTaskClick: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(com.examshield.ai.ui.theme.DarkMatterSurface, shape = MaterialTheme.shapes.medium)
@@ -123,7 +158,33 @@ fun SystemStatusPanel(isScanning: Boolean, threatCount: Int) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             StatusIndicator("SENSOR STATUS", if (isScanning) "ACTIVE" else "IDLE", if (isScanning) Color.Green else Color.Gray)
             StatusIndicator("THREATS FOUND", threatCount.toString(), if (threatCount > 0) com.examshield.ai.ui.theme.ThreatRed else Color.White)
-            StatusIndicator("AI CONFIDENCE", if (isScanning) "98.4%" else "---", MaterialTheme.colorScheme.primary)
+            StatusIndicator("AI NEXUS", if (isScanning) "ONLINE" else "WAITING", MaterialTheme.colorScheme.primary)
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Button(
+            onClick = onAdvisorClick,
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray.copy(alpha = 0.4f)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Cyan)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("AI Advisor", color = Color.White, fontSize = 10.sp)
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onTaskClick,
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Task Panel (لوحة المهام)", color = Color.White, fontSize = 10.sp)
         }
     }
 }
@@ -137,7 +198,7 @@ fun StatusIndicator(label: String, value: String, valueColor: Color) {
 }
 
 @Composable
-fun ThreatCard(threat: ClassificationResult, navController: NavController) {
+fun ThreatCard(threat: ClassificationResult, navController: NavController, viewModel: MonitorScreenViewModel) {
     val borderColor = when (threat.riskLevel) {
         RiskLevel.LEVEL_4_CONFIRMED_THREAT -> com.examshield.ai.ui.theme.ThreatRed
         RiskLevel.LEVEL_3_PROXIMITY_MATCH -> com.examshield.ai.ui.theme.ThreatOrange
@@ -152,60 +213,101 @@ fun ThreatCard(threat: ClassificationResult, navController: NavController) {
         color = com.examshield.ai.ui.theme.DarkMatterSurface,
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor.copy(alpha = 0.4f))
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Signal Strength Mini-Graph Representation
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(borderColor.copy(alpha = 0.1f), CircleShape)
-                    .border(1.dp, borderColor.copy(alpha = 0.4f), CircleShape),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Signal Strength
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(borderColor.copy(alpha = 0.1f), CircleShape)
+                        .border(1.dp, borderColor.copy(alpha = 0.4f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${threat.rawObject.signalStrengthRssi}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = borderColor
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = threat.deviceType.name.replace("_", " "),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = threat.distanceZone.name,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = borderColor.copy(alpha = 0.8f)
+                        )
+                        Text(
+                            text = " • ",
+                            color = Color.White.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = threat.rawObject.name ?: "UNNAMED_SIGNATURE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${threat.confidenceScore}%",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 16.sp,
+                        color = borderColor
+                    )
+                    Text(
+                        text = "MATCH",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 8.sp,
+                        color = borderColor.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // TACTICAL ACTIONS ROW (Arabic RTL Primary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "${threat.rawObject.signalStrengthRssi}",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = borderColor
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = threat.deviceType.name.replace("_", " "),
-                    fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
-                    color = Color.White
-                )
-                Text(
-                    text = threat.rawObject.name ?: "UNNAMED_SIGNATURE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.5f)
-                )
-                Text(
-                    text = threat.rawObject.macAddress,
-                    fontSize = 9.sp,
-                    color = Color.White.copy(alpha = 0.3f),
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                )
-            }
-            
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "${threat.confidenceScore}%",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                    color = borderColor
-                )
-                Text(
-                    text = "MATCH",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 8.sp,
-                    color = borderColor.copy(alpha = 0.6f)
-                )
+                // FRIENDLY SIGNAL BUTTON (إشارة صديقة)
+                OutlinedButton(
+                    onClick = { viewModel.markAsFriendly(threat) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(4.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.LightGray),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    Text("إشارة صديقة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // CHEATING SIGNAL BUTTON (إشارة غش) - High Priority Red
+                Button(
+                    onClick = { viewModel.markAsCheating(threat) },
+                    modifier = Modifier.weight(1.3f), // Slightly wider to emphasize threat
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.examshield.ai.ui.theme.ThreatRed,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    Text("إشارة غش", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                }
             }
         }
     }
 }
-

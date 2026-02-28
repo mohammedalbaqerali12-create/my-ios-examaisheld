@@ -81,6 +81,9 @@ class MainActivity : ComponentActivity() {
                 add(Manifest.permission.BLUETOOTH)
                 add(Manifest.permission.BLUETOOTH_ADMIN)
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
         requestPermissionLauncher.launch(permissions.toTypedArray())
     }

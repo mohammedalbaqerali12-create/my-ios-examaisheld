@@ -6,57 +6,23 @@ import com.examshield.ai.domain.model.DeviceType
 import com.examshield.ai.domain.model.DistanceZone
 import com.examshield.ai.domain.model.RiskLevel
 import com.examshield.ai.domain.usecase.EstimateDistanceUseCase
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 class TFLiteDeviceClassifierImpl @Inject constructor(
     private val estimateDistanceUseCase: EstimateDistanceUseCase,
-    private val adaptiveLearningEngine: AdaptiveLearningEngine
+    private val adaptiveLearningEngine: AdaptiveLearningEngine,
+    private val aiIntelligenceService: AiIntelligenceService
 ) : DeviceClassifier {
 
-    override suspend fun classify(detectedObject: DetectedObject): ClassificationResult {
-        // Step 1: Get historical context from the learning engine
-        val context = adaptiveLearningEngine.analyze(detectedObject)
-
-        // Step 2: Estimate distance and zone
-        val distance = estimateDistanceUseCase(detectedObject.signalStrengthRssi.toDouble())
-        val zone = getDistanceZone(distance)
-
-        // Step 3: Determine device type using advanced logic (now suspended for internet lookup)
-        val type = determineDeviceType(detectedObject)
-
-        // Step 4: Calculate base confidence score
-        var confidence = calculateConfidence(type, detectedObject, zone)
-
-        // Step 5: Adjust confidence based on historical context
-        if (context.isFrequentlySeen) {
-            confidence -= 20 // Reduce confidence for familiar devices
-        }
-        if (context.isNew) {
-            confidence += 15 // Increase confidence for new devices
-        }
-        if (context.isRepeatedlySeenRecently) {
-            confidence += 10 // Increase confidence for devices seen multiple times recently
-        }
-
-        // Step 6: Determine final risk level based on all factors
-        val riskLevel = determineRiskLevel(type, zone, confidence, context)
-        
-        return ClassificationResult(
-            deviceType = type,
-            confidenceScore = confidence.coerceIn(0, 100), // Ensure confidence is between 0 and 100
-            distanceZone = zone,
-            estimatedDistanceMeters = distance.toFloat(),
-            riskLevel = riskLevel,
-            rawObject = detectedObject
-        )
-    }
 
     private suspend fun determineDeviceType(detectedObject: DetectedObject): DeviceType {
         val lowerName = detectedObject.name?.lowercase() ?: ""
         val manufacturer = OuiLookup.lookup(detectedObject.macAddress)
         val extra = detectedObject.extraMetadata
+        val uuids = (extra["serviceUuids"] as? List<*>)?.map { it.toString().lowercase() } ?: emptyList()
         
-        // 1. PHYSICAL THREAT DETECTION (Magnetometer)
+        // 1. PHYSICAL THREAT DETECTION
         if (detectedObject.macAddress == "MAGNETIC_FIELD_ANOMALY") {
              val vector = detectedObject.sensorVector
              if (vector != null) {
@@ -66,81 +32,258 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
              return DeviceType.MAGNETIC_ANOMALY
         }
 
-        // 2. CHEATING GEAR SIGNATURES
-        if (lowerName.contains("spy") || lowerName.contains("mini") || 
-            lowerName.contains("vip") || lowerName.contains("s530") ||
-            lowerName.matches(Regex(".*[a-z]\\d{2,}.*"))) {
-            return DeviceType.NANO_EARPIECE
-        }
+        // 2. SURGICAL UUID DNA ANALYSIS (Astra V5)
+        val isAudioUuids = uuids.any { it.contains("110b") || it.contains("110a") || it.contains("110e") || it.contains("fd5a") }
+        val isWearableUuids = uuids.any { it.contains("180d") || it.contains("1812") || it.contains("fee7") || it.contains("fedd") }
+        val isPhoneUuids = uuids.any { it.contains("fe9f") || it.contains("d061") || it.contains("0000fe9f") } // Google Fast Pair / Apple Continuity
 
-        // 3. INFRASTRUCTURE SCANNING (Routers/Towers)
-        val isInfrastructure = lowerName.contains("tower") || lowerName.contains("booster") || 
-                               lowerName.contains("mesh") || lowerName.contains("extender") || 
-                               lowerName.contains("router") || lowerName.contains("tp-link") ||
-                               lowerName.contains("tenda") || lowerName.contains("mercys") ||
-                               (manufacturer?.lowercase()?.contains("tp-link") == true)
-        
+        // 3. INFRASTRUCTURE SCANNING (Routers/Towers) - STRICTLY DROPPED LATER
+        val isInfrastructure = lowerName.contains("router") || lowerName.contains("tp-link") ||
+                               lowerName.contains("d-link") || lowerName.contains("asus") ||
+                               (manufacturer?.lowercase()?.contains("tp-link") == true) ||
+                               (manufacturer?.lowercase()?.contains("d-link") == true)
         if (isInfrastructure) return DeviceType.ROUTER_INFRASTRUCTURE
 
-        // 4. SMART-PERIPHERAL SIGNATURES (Watches & Buds)
-        val isAudioSignature = lowerName.contains("buds") || lowerName.contains("ear") || 
-                               lowerName.contains("airpod") || lowerName.contains("audio") ||
-                               lowerName.contains("headset")
-                               
-        val isWearableSignature = lowerName.contains("watch") || lowerName.contains("band") || 
-                                 lowerName.contains("fitbit") || lowerName.contains("garmin")
-
-        // 5. SMARTPHONE SIGNATURE (The "Astra" Algorithm)
-        // Phones typically have Randomized MACs AND are connectable AND often broadcast multiple services
+        // 4. SMARTPHONE SIGNATURE (REFINED V5)
         val isRandomizedMac = detectedObject.macAddress.length >= 2 && 
-                              detectedObject.macAddress[1].lowercaseChar() in listOf('2', '6', 'a', 'e')
-        
+                               detectedObject.macAddress[1].lowercaseChar() in listOf('2', '6', 'a', 'e')
         val txPower = extra["txPower"] as? Int ?: -1
         val isConnectable = extra["isConnectable"] as? Boolean ?: false
         
-        // High confidence Phone signature: Randomized MAC + High Power/Connectable
-        val isModernPhone = isRandomizedMac && (isConnectable || txPower > -50)
+        // Broaden: Many modern phones are randomized and connectable but might have weak TX power info
+        val hasPhoneServices = uuids.any { it.contains("0000fe9f") || it.contains("0000fd64") || it.contains("0000feaf") || it.contains("0000feed") }
+        val isModernPhone = (isRandomizedMac && isConnectable) || isPhoneUuids || hasPhoneServices || (isRandomizedMac && txPower > -75)
 
-        // 6. MULTI-FACTOR CLASSIFICATION
+        // 5. SURGICAL CLASSIFICATION
         return when {
-            // Priority 1: Direct matches
-            isWearableSignature -> DeviceType.SMARTWATCH
-            isAudioSignature -> DeviceType.WIRELESS_EARBUD
+            // Priority 1: UUID DNA (Highest Accuracy)
+            isAudioUuids -> DeviceType.WIRELESS_EARBUD
+            isWearableUuids -> DeviceType.SMARTWATCH
+            isPhoneUuids -> DeviceType.SMARTPHONE
             
-            // Priority 2: Manufacturer Intent
+            // Priority 2: Direct Name Match
+            lowerName.contains("buds") || lowerName.contains("ear") || lowerName.contains("pod") || lowerName.contains("audio") 
+                || lowerName.contains("headset") -> DeviceType.WIRELESS_EARBUD
+            lowerName.contains("watch") || lowerName.contains("band") || lowerName.contains("fitbit") 
+                || lowerName.contains("garmin") -> DeviceType.SMARTWATCH
+            lowerName.contains("phone") || lowerName.contains("iphone") || lowerName.contains("galaxy") || lowerName.contains("pixel")
+                || lowerName.contains("android") || lowerName.contains("samsung") || lowerName.contains("huawei") || lowerName.contains("oppo")
+                || lowerName.startsWith("direct-") -> DeviceType.SMARTPHONE
+            
+            // Common Cheating Gear Signatures (ESP32, Serial Bluetooth modules, Tiny Transmitters)
+            lowerName.contains("esp32") || lowerName.contains("hc-05") || lowerName.contains("hc-06") 
+                || lowerName.contains("ble-uart") || lowerName.contains("serial") || (manufacturer?.lowercase()?.contains("espressif") == true) -> DeviceType.NANO_EARPIECE
+
+            // Priority 3: Manufacturer Logic
             manufacturer != null -> {
                 val mLower = manufacturer.lowercase()
                 when {
                     mLower.contains("apple") || mLower.contains("samsung") || mLower.contains("google") ||
                     mLower.contains("huawei") || mLower.contains("oppo") || mLower.contains("vivo") ||
                     mLower.contains("oneplus") || mLower.contains("motorola") || mLower.contains("xiaomi") -> {
-                        // Refine based on specific signatures inside known phone brands
-                        if (isAudioSignature) DeviceType.WIRELESS_EARBUD
-                        else if (isWearableSignature) DeviceType.SMARTWATCH
-                        else DeviceType.SMARTPHONE
+                         // Refine by context
+                         if (isConnectable && txPower > -65) DeviceType.SMARTPHONE
+                         else if (txPower < -70) DeviceType.WIRELESS_EARBUD
+                         else DeviceType.SMARTWATCH
                     }
-                    mLower.contains("anker") || mLower.contains("jabra") || mLower.contains("bose") -> DeviceType.WIRELESS_EARBUD
+                    mLower.contains("anker") || mLower.contains("jabra") || mLower.contains("bose") || mLower.contains("sony") -> DeviceType.WIRELESS_EARBUD
                     else -> if (isModernPhone) DeviceType.SMARTPHONE else DeviceType.SUSPICIOUS_UNKNOWN
                 }
             }
 
-            // Priority 3: Heuristic fallbacks
+            // Priority 4: Fallbacks (More aggressive for Astra V5)
             isModernPhone -> DeviceType.SMARTPHONE
-            lowerName.contains("phone") || lowerName.contains("iphone") || lowerName.contains("galaxy") || lowerName.startsWith("direct-") -> DeviceType.SMARTPHONE
+            isRandomizedMac && isConnectable -> DeviceType.SMARTPHONE
+            isRandomizedMac -> DeviceType.SMARTPHONE // In a strict exam environment, any randomized BLE is likely a phone/watch
             
-            // Unnamed non-randomized BLE is highly suspicious for hidden modules
+            // Unnamed non-randomized BLE modules are highly suspicious
             detectedObject.isBle && detectedObject.name.isNullOrBlank() && !isRandomizedMac -> DeviceType.NANO_EARPIECE
             
-            isRandomizedMac -> {
-                if (detectedObject.isWifi && (detectedObject.name.isNullOrBlank() || detectedObject.name == "Hidden Network")) {
-                    DeviceType.SUSPICIOUS_UNKNOWN
-                } else {
-                    DeviceType.SMARTPHONE
+            // Check for technical names that indicate serial/cheating gear
+            lowerName.contains("serial") || lowerName.contains("uart") || lowerName.contains("com") 
+                || lowerName.contains("tty") || lowerName.contains("bt-") -> DeviceType.NANO_EARPIECE
+
+            else -> DeviceType.SUSPICIOUS_UNKNOWN
+        }
+    }
+
+    override suspend fun classify(detectedObject: DetectedObject): ClassificationResult {
+        val result = performBaseClassification(detectedObject)
+        
+        // --- ASTRA V5 SURGICAL NAMING ---
+        // If the device has no name, generate a professional technical signature
+        if (result.rawObject.name.isNullOrBlank()) {
+            val surgicalName = generateProfessionalName(result)
+            return result.copy(rawObject = result.rawObject.copy(name = surgicalName))
+        }
+        
+        return result
+    }
+
+    private suspend fun performBaseClassification(detectedObject: DetectedObject): ClassificationResult {
+        val context = adaptiveLearningEngine.analyze(detectedObject)
+        val distance = estimateDistanceUseCase(detectedObject.signalStrengthRssi.toDouble())
+        val zone = getDistanceZone(distance)
+        val type = determineDeviceType(detectedObject)
+        var confidence = calculateConfidence(type, detectedObject, zone)
+
+        if (context.isFrequentlySeen) confidence -= 10 // Reduced penalty
+        if (context.isNew) confidence += 20
+        
+        // AI Self-Learning: If we've seen this device many times in short bursts, boost threat assessment
+        var selfLearningBoost = if (context.observationCount > 5 && context.isRepeatedlySeenRecently) 15 else 0
+        
+        // Behavioral Practice: Consistent predictable streams are high-risk indicators for cheating gear
+        if (context.isConsistentStream) {
+            selfLearningBoost += 20
+        }
+        
+        confidence += selfLearningBoost
+
+        val riskLevel = determineRiskLevel(type, zone, confidence + selfLearningBoost, context)
+        
+        // Generate Discovery Reason for transparency
+        val baseReason = buildString {
+            if (context.isNew) append("NEW_NODE ")
+            if (context.isConsistentStream) append("BEHAVIOR_MATCH ")
+            if (context.isRepeatedlySeenRecently) append("BURST_PATTERN ")
+            if (detectedObject.isClassicBluetooth) append("CLASSIC_BT ")
+            if (detectedObject.isBle) append("BLE_ADVERT ")
+            if (detectedObject.macAddress.startsWith("MAGNETIC")) append("MAG_SENSOR ")
+        }.trim()
+
+        // --- ASTRA NEXUS: UNIFIED SYNERGY LOGIC ---
+        var isNexusVerified = false
+        var synergyScore = confidence
+        var finalType = type
+        var finalReason = baseReason.ifEmpty { "LOCAL_SIG" }
+        
+        if (type == DeviceType.SUSPICIOUS_UNKNOWN || confidence < 60) {
+            val aiResponse = aiIntelligenceService.analyzeThreat(
+                mac = detectedObject.macAddress,
+                name = detectedObject.name,
+                manufacturer = OuiLookup.lookup(detectedObject.macAddress),
+                rssi = detectedObject.signalStrengthRssi,
+                deviceType = type.name
+            ).firstOrNull()
+            
+            if (aiResponse != null && !aiResponse.contains("IGNORE_SIGNAL") && aiResponse != "LOCAL_ONLY" && aiResponse != "AI_OFFLINE") {
+                val upperResponse = aiResponse.uppercase()
+                val cloudType = when {
+                    upperResponse.contains("SMARTPHONE") -> DeviceType.SMARTPHONE
+                    upperResponse.contains("SMARTWATCH") -> DeviceType.SMARTWATCH
+                    upperResponse.contains("EARBUD") -> DeviceType.WIRELESS_EARBUD
+                    upperResponse.contains("EARPIECE") -> DeviceType.NANO_EARPIECE
+                    else -> null
+                }
+                
+                if (cloudType != null) {
+                    // Nexus Match: Local AI and Cloud AI agree or Cloud promotes Local
+                    if (cloudType == finalType || finalType == DeviceType.SUSPICIOUS_UNKNOWN) {
+                        isNexusVerified = true
+                        synergyScore += 30
+                        finalType = cloudType
+                        finalReason = "(NEXUS: $aiResponse)"
+                    } else {
+                        finalReason = "(CLOUD_OVERRIDE: $aiResponse)"
+                        finalType = cloudType
+                        synergyScore += 15
+                    }
                 }
             }
-            
-            detectedObject.isClassicBluetooth && detectedObject.name.isNullOrBlank() -> DeviceType.NANO_EARPIECE
-            else -> DeviceType.SUSPICIOUS_UNKNOWN
+        }
+
+        // Sensor Fusion Synergy Boost (Aggressive Marking for Nexus Protocol)
+        if (baseReason.contains("MAG_SENSOR") || (context.isConsistentStream && confidence > 70)) {
+            synergyScore += 40
+            isNexusVerified = true
+            finalReason = "NEXUS_MATCH_VERIFIED"
+        }
+        
+        // Behavioral Nexus: Recurring high-risk patterns
+        if (context.observationCount > 3 && context.isRepeatedlySeenRecently && confidence > 80) {
+            isNexusVerified = true
+            synergyScore += 20
+        }
+        
+        // ASTRA V11: AUTONOMOUS EVOLUTION
+        if (context.learnedTypePromotion != null) {
+            val learnedType = DeviceType.valueOf(context.learnedTypePromotion)
+            if (learnedType != DeviceType.SUSPICIOUS_UNKNOWN) {
+                finalType = learnedType
+                isNexusVerified = true // Learned rules provide instant Nexus-level verification
+                synergyScore += context.learnedSynergyBoost
+                finalReason = "NEXUS_EVOLVED_MATCH"
+            }
+        }
+
+        // ASTRA NEXUS: SUPERVISOR FEEDBACK OVERRIDE
+        if (context.isMarkedFriendly) {
+            confidence = 5
+            synergyScore = 0
+            isNexusVerified = false
+            finalReason = "SUPERVISOR_MARKED_SAFE"
+        }
+
+        if (context.isMarkedCheating) {
+            confidence = 100
+            synergyScore = 100
+            isNexusVerified = true
+            finalReason = if (context.cheatingHitCount > 1) "REPEATED_CHEATING_PATTERN" else "SUPERVISOR_CONFIRMED_THREAT"
+        }
+        
+        // Apply feedback-driven risk elevation (Astra Nexus Loop)
+        confidence += context.feedbackRiskElevation
+        synergyScore += context.feedbackRiskElevation
+
+        // Trigger Autonomous Learning if Cloud AI verified a threat
+        if (isNexusVerified && context.learnedTypePromotion.isNullOrBlank()) {
+             // If we just verified it via Cloud AI and don't have a local rule yet, learn it!
+             if (finalReason.contains("NEXUS:")) {
+                 adaptiveLearningEngine.learnFromNexus(
+                     ClassificationResult(
+                         deviceType = finalType,
+                         confidenceScore = confidence.coerceIn(0, 100),
+                         distanceZone = zone,
+                         estimatedDistanceMeters = distance.toFloat(),
+                         riskLevel = determineRiskLevel(finalType, zone, confidence, context),
+                         discoveryReason = finalReason,
+                         rawObject = detectedObject,
+                         isNexusVerified = isNexusVerified,
+                         synergyScore = synergyScore.coerceIn(0, 100)
+                     )
+                 )
+                 finalReason = "NEXUS_NEW_PATTERN_EVOLVED"
+             }
+        }
+        
+        return ClassificationResult(
+            deviceType = finalType,
+            confidenceScore = confidence.coerceIn(0, 100),
+            distanceZone = zone,
+            estimatedDistanceMeters = distance.toFloat(),
+            riskLevel = determineRiskLevel(finalType, zone, confidence, context),
+            discoveryReason = finalReason,
+            rawObject = detectedObject,
+            isNexusVerified = isNexusVerified,
+            synergyScore = synergyScore.coerceIn(0, 100),
+            feedback = when {
+                context.isMarkedFriendly -> com.examshield.ai.domain.model.SupervisorFeedback.FRIENDLY
+                context.isMarkedCheating -> com.examshield.ai.domain.model.SupervisorFeedback.CHEATING
+                else -> com.examshield.ai.domain.model.SupervisorFeedback.PENDING
+            }
+        )
+    }
+
+    private fun generateProfessionalName(result: ClassificationResult): String {
+        val macTail = result.rawObject.macAddress.takeLast(4).uppercase()
+        return when (result.deviceType) {
+            DeviceType.SMARTPHONE -> "PHONE_SIG_[$macTail]"
+            DeviceType.SMARTWATCH -> "WATCH_SIG_[$macTail]"
+            DeviceType.WIRELESS_EARBUD -> "EAR_SIG_[$macTail]"
+            DeviceType.NANO_EARPIECE -> "HYBRID_SIG_[$macTail]"
+            DeviceType.MAGNETIC_ANOMALY -> "PHYS_SIG_[$macTail]"
+            else -> "NODE_[$macTail]"
         }
     }
 
@@ -163,7 +306,13 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
     }
 
     private fun determineRiskLevel(type: DeviceType, zone: DistanceZone, confidence: Int, context: AnalysisContext): RiskLevel {
+        if (context.isMarkedFriendly) return RiskLevel.LEVEL_1_SUSPICIOUS
+        if (context.isMarkedCheating) return RiskLevel.LEVEL_4_CONFIRMED_THREAT
+
         return when {
+            // Repeat offender logic: If we've seen this cheating pattern before (learned/history), start at Level 2
+            context.feedbackRiskElevation > 0 -> RiskLevel.LEVEL_2_REPEATED
+            
             type == DeviceType.MAGNETIC_ANOMALY && zone == DistanceZone.IMMEDIATE -> RiskLevel.LEVEL_4_CONFIRMED_THREAT
             type == DeviceType.NANO_EARPIECE && zone == DistanceZone.IMMEDIATE -> RiskLevel.LEVEL_4_CONFIRMED_THREAT
             confidence > 90 && (zone == DistanceZone.IMMEDIATE || zone == DistanceZone.NEAR) -> RiskLevel.LEVEL_3_PROXIMITY_MATCH
