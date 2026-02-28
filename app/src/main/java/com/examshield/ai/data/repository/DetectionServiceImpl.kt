@@ -23,8 +23,7 @@ class DetectionServiceImpl(
     private val wifiDirectScanner: Scanner,
     private val magneticFieldScanner: Scanner,
     private val orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-    private val classifier: DeviceClassifier,
-    private val focusTaskManager: com.examshield.ai.domain.ai.FocusTaskManager
+    private val classifier: DeviceClassifier
 ) : DetectionService {
 
     // ASTRA NEXUS: HIGH-PRECISION TRACKING ENGINE
@@ -138,12 +137,6 @@ class DetectionServiceImpl(
                 type == com.examshield.ai.domain.model.DeviceType.WIRELESS_EARBUD ||
                 type == com.examshield.ai.domain.model.DeviceType.NANO_EARPIECE ||
                 type == com.examshield.ai.domain.model.DeviceType.MAGNETIC_ANOMALY
-            }
-            .filter { result ->
-                focusTaskManager.isSignalInFocus(
-                    result.estimatedDistanceMeters.toDouble(),
-                    0f, 0f
-                )
             }
             .flowOn(Dispatchers.Default)
     }

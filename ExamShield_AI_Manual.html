@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>دليل الاستخدام الشامل - ExamShield AI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            max-width: 210mm; /* A4 width */
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ecf0f1;
+        }
+        .page {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h1, h2, h3, h4 {
+            color: #1abc9c;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            border-bottom: 3px solid #1abc9c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-weight: 900;
+        }
+        h2 {
+            border-bottom: 2px solid #bdc3c7;
+            padding-bottom: 8px;
+            margin-top: 40px;
+            font-weight: 700;
+        }
+        h3 {
+            margin-top: 30px;
+            color: #2980b9;
+        }
+        .cover {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 250mm;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+        }
+        .cover h1 {
+            border: none;
+            font-size: 4em;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .cover .subtitle {
+            font-size: 1.5em;
+            color: #7f8c8d;
+            margin-bottom: 50px;
+        }
+        .cover .version {
+            font-size: 1.2em;
+            color: #95a5a6;
+            margin-top: auto;
+            margin-bottom: 30px;
+        }
+        .feature-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-right: 5px solid #3498db;
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .feature-box h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 40px 0;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+        }
+        .image-placeholder {
+            width: 100%;
+            height: 250px;
+            background-color: #e2e8f0;
+            border: 2px dashed #a0aec0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #718096;
+            font-weight: bold;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        ul, ol {
+            padding-right: 25px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        @media print {
+            body { background: none; margin: 0; padding: 0; }
+            .page { box-shadow: none; padding: 15mm; margin: 0; border-radius: 0; border: none; }
+            .print-break { page-break-after: always; }
+            .no-print { display: none; }
+        }
+        .note {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            border-right: 5px solid #ffeeba;
+            margin: 20px 0;
+        }
+    </style>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+          primaryColor: '#e0f7fa',
+          primaryTextColor: '#006064',
+          primaryBorderColor: '#00bcd4',
+          lineColor: '#00838f',
+          secondaryColor: '#f1f8e9',
+          tertiaryColor: '#fffde7'
+      } });
+    </script>
+</head>
+<body>
+
+<div class="no-print" style="text-align: center; padding: 10px; background-color: #d1ecf1; color: #0c5460; font-weight: bold; border-radius: 8px; margin-bottom: 20px;">
+    💡 لحفظ هذا المستند كملف PDF، اضغط على <strong>Ctrl + P</strong> (أو <strong>Cmd + P</strong> في الماك) 
+    ثم اختر الوجهة "Save as PDF" (حفظ بتنسيق PDF).
+</div>
+
+<div class="page cover print-break">
+    <div style="margin-bottom: 20px;">
+        <!-- Placeholder for App Logo -->
+        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="M12 8v4"></path>
+            <path d="M12 16h.01"></path>
+        </svg>
+    </div>
+    <h1>ExamShield AI</h1>
+    <p class="subtitle">الدليل الشامل: نظام مكافحة الغش الإلكتروني المدعوم بالذكاء الاصطناعي</p>
+    <div class="version">الإصدار 1.0 (دليل المستخدم والمشرفين)</div>
+</div>
+
+<div class="page print-break">
+    <h2>1. مقدمة حول النظام</h2>
+    <p>يعد نظام <strong>ExamShield AI</strong> قفزة نوعية في أمن الامتحانات الأكاديمية. هو تطبيق محمول يعمل على البيئة المحسنة لأنظمة أندرويد، تم تصميمه خصيصاً للقضاء على ظاهرة الغش باستخدام الأجهزة الإلكترونية الدقيقة (مثل سماعات الأذن المخفية، الساعات الذكية، الهواتف، وأجهزة البث المتطورة).</p>
+    <p>ما يميز هذا النظام هو اعتماده الكلي على <strong>الذكاء الاصطناعي (AI) والتحليل اللاسلكي المتقدم (Wireless Sensing)</strong>، دون الحاجة لتدخل في خصوصيات الطلاب أو اختراق أي شبكات. فهو يقوم بمسح الأثير اللاسلكي لمعرفة أين ومتى يتم استخدام أجهزة غير مصرح بها.</p>
+
+    <h2>2. الهدف من التطبيق</h2>
+    <p>الهدف الجوهري لـ ExamShield يعتمد على ثلاثة مبادئ:</p>
+    <ol>
+        <li><strong>الكشف الدقيق (Detection):</strong> تتبع الأجهزة التي تعمل بتقنيات Bluetooth، BLE، و Wi-Fi.</li>
+        <li><strong>التصنيف الذكي (Classification):</strong> تحديد ما إذا كان الجهاز الملتقط يمثل تهديداً أم أنه جهاز طبيعي (مثل جهاز تكييف أو راوتر قاعة).</li>
+        <li><strong>تحديد الموقع المكاني (Localization):</strong> تزويد المراقب برادار دقيق لتحديد زاوية وبعد الجهاز داخل القاعة بالاعتماد على خوارزميات رادارية لتتبع قوة الإشارة.</li>
+    </ol>
+</div>
+
+<div class="page print-break">
+    <h2>3. الميزات التقنية الرئيسية</h2>
+    
+    <div class="feature-box">
+        <h3>📡 الاستشعار اللاسلكي الذكي (Wireless Scanning)</h3>
+        <p>يتميز التطبيق بقدرته على إجراء مسح عميق للإشارات المحيطة (RSSI)، وفلترة الإشارات للتعرف على الأجهزة المخفية حتى لو كانت غير مقترنة (Unpaired) أو في وضع التخفي (Stealth Mode).</p>
+    </div>
+
+    <div class="feature-box">
+        <h3>🧠 التصنيف عبر الذكاء الاصطناعي (AI Classification)</h3>
+        <p>لا يتم تنبيه المشرف على كل إشارة يلتقطها التطبيق. يقوم نموذج الذكاء الاصطناعي بتحليل البيانات الوصفية الخاصة بالإشارة (الـ MAC Address، السلوك والتردد، الفئة التقنية). ويعطي تقييماً بمستوى الخطورة (Confidence Score) من 0% إلى 100%.</p>
+    </div>
+
+    <div class="feature-box">
+        <h3>🎯 رادار التوجيه ومعايرة المسافات (Radar & Distance Tracking)</h3>
+        <p>يوفر التطبيق واجهة رادار تفاعلية، حيث يعتمد على نموذج انخفاض المسار اللوغاريتمي (Log-Distance Path Loss Model). عندما يوجه المشرف جهازه ناحية الطالب الذي يحمل جهاز الغش، يعطي البرنامج إشارة مرئية ("Target Lock") واهتزازات مع قراءة المسافة بالأمتار.</p>
+    </div>
+
+    <div class="feature-box">
+        <h3>📚 التعلم الذاتي المتقدم (Self-Learning and Adaptation)</h3>
+        <p>التطبيق يتطور ويصبح أذكى بمرور الوقت! من خلال نظام التعرف على البصمة البيئية (Environmental Baselines)، يقوم التطبيق بحفظ الأجهزة "الآمنة" في قاعة معينة لكيلا تصدر إنذارات خاطئة مستقبلاً. كما يسجل الأجهزة التي يؤكد المشرف أنها أدوات غش ليستهدفها بشكل أقوى في الامتحانات القادمة.</p>
+    </div>
+
+    <div class="feature-box">
+        <h3>🗺️ نمذجة قاعة الامتحان (Room Modeling)</h3>
+        <p>أداة بصرية تتيح للمشرفين رسم المخطط الشبكي للقاعة (الطاولات، الممرات، والنقاط المرجعية)، وبالتالي ربط مصدر الإشارة المشبوهة بموقع فعلي على الخريطة.</p>
+    </div>
+</div>
+
+<div class="page print-break">
+    <h2>4. المخططات التوضيحية لآلية العمل (System Diagrams)</h2>
+    
+    <h3>الشكل 1: المخطط التدفقي لسير عمليات النظام (Workflow)</h3>
+    <p>كيف تنتقل الإشارة من مجرد موجات لاسلكية إلى إنذار صريح للمشرف:</p>
+    
+    <div class="mermaid">
+        graph TD
+        Start([بدء مسح القاعة]) --> Scan(التقاط الإشارات اللاسلكية Bluetooth/WiFi)
+        Scan --> Filter{هل الجهاز مسجل<br>كمصرح به سابقاً؟}
+        Filter -- نعم --> Ignore([استبعاد آمن])
+        Filter -- لا --> Extract(استخراج بصمة الجهاز: MAC, RSSI, Name)
+        Extract --> AI_Process(تحليل ومعالجة عبر الذكاء الاصطناعي)
+        AI_Process --> Eval{تقييم مستوى التهديد}
+        Eval -- خطر منخفض --> Monitor([مراقبة صامتة في الخلفية])
+        Eval -- خطر عالي --> Alert(إطلاق تنبيه وتحديد موقع الجهاز على الرادار)
+        Alert --> Radar[توجيه المراقب للموقع بدقة]
+        Radar --> Verify{تحقق المراقب}
+        Verify -- تأكيد الغش --> DB_Block[(إضافة لقائمة قواعد التعلم الذاتي - محظور)]
+        Verify -- إثبات البراءة --> DB_Allow[(إضافة لقائمة قواعد التعلم الذاتي - مسموح)]
+    </div>
+
+    <div class="note">
+        <strong>ملاحظة هامة:</strong> عمليات الذكاء الاصطناعي ومعالجة البيانات تتم محلياً وبشكل مشفر للحفاظ على الخصوصية (Privacy-by-design) أو عبر واجهات برمجة مشفرة. لا يتم جمع أو إرسال أية بيانات شخصية متعلقة بهويات الطلاب.
+    </div>
+
+    <h3>الشكل 2: البنية المعمارية للبرنامج</h3>
+    <div class="mermaid">
+        graph LR
+        SubGraph1[واجهة المستخدم UI]
+        SubGraph1 -->|يعرض التحديثات| VM[ViewModel - حلقة الوصل]
+        VM <-->|يطلب البيانات| Repo[طبقة المستودعات Repositories]
+        Repo <--> DB[(قاعدة بيانات محلية Room DB)]
+        Repo <--> Sensor[مستشعرات الهاتف: رادار, بلوتوث]
+        Repo <--> AI_Engine{محرك الذكاء الاصطناعي}
+        
+        style SubGraph1 fill:#e1bee7,stroke:#8e24aa,stroke-width:2px
+        style VM fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+        style Repo fill:#bbdefb,stroke:#1976d2,stroke-width:2px
+        style AI_Engine fill:#ffecb3,stroke:#ffa000,stroke-width:2px
+    </div>
+</div>
+
+<div class="page print-break">
+    <h2>5. رحلة استخدام البرنامج داخل قاعة الامتحان</h2>
+
+    <h3>1. خطوة الإعداد المبدئي (Room Setup & Baselining)</h3>
+    <p>قبل دخول الطلاب إلى ساحة الامتحان، يقوم المشرف بتشغيل التطبيق وأخذ "لقطة بيئية" (Baseline Analysis). هذه الخطوة تجعل البرنامج يدرك أن أجهزة الراوتر المحيطة أو ساعات المدرسين هي أجهزة طبيعية موجودة في البيئة ولا تمثل خطراً، وبالتالي يتم استبعادها في المسح المستقبلي.</p>
+    
+    <div class="image-placeholder">
+        [ صورة توضيحية: شاشة "إعداد البصمة البيئية" مع شريط تحميل يشير إلى تصفية الأجهزة ]
+    </div>
+
+    <h3>2. مرحلة الرصد الذكي (Active Monitoring)</h3>
+    <p>بمجرد بدء اللجان، يتم تحويل التطبيق للوضع النشط. يبدأ الذكاء الاصطناعي بتحليل مليّ الإشارات في الهواء. تظهر على الشاشة قائمة تفاعلية مرتبة بناءً على مستوى الخطورة. الأجهزة المجهولة التي تظهر فجأة وبترددات قريبة يصنفها التطبيق كتهديد محتمل (Potential Threat).</p>
+
+    <div class="image-placeholder">
+        [ صورة توضيحية: قائمة الأجهزة المكتشفة، مفروزة بالألوان الأحمر (خطر عالي)، الأصفر (متوسط)، الرمادي (آمن) ]
+    </div>
+
+    <h3>3. الرادار والتتبع الجراحي (Radar Tracking)</h3>
+    <p>إذا ظهر مستوى خطر عالي، يضغط المشرف على الجهاز המשبوه في الشاشة لفتح <strong>نظام الرادار</strong>.
+    يقوم المشرف بتحريك هاتفه في أرجاء القاعة:</p>
+    <ul>
+        <li>إذا كان الهاتف يشير للاتجاه الخاطئ، تظهر واجهة الرادار خافتة والمسافة غير معروفة.</li>
+        <li>بمجرد توجيه الهاتف للزاوية الصحيحة للطالب المخالف، يقفل الرادار على الهدف (Target Lock) وتومض الشاشة باللون الأحمر.</li>
+        <li>يتم عرض عداد أمتار دقيق يقدر المسافة المتبقية بين المشرف والجهاز المخفي.</li>
+    </ul>
+
+    <div class="image-placeholder">
+        [ صورة توضيحية: شاشة الرادار الخضراء، تُظهر إحداثيات، زاوية توجيه، وقراءة للمسافة "المسافة: 2.3 متر" ]
+    </div>
+
+    <h3>4. التأكيد والتحديث المحلي (Confirmation & Feedback Loop)</h3>
+    <p>عند وصول المراقب والتأكد من وجود جهاز غش (أو عدم وجوده)، يقوم المدرس بإدخال إفادته في التطبيق. إذا كان الجهاز الفعلي لجهاز غش، يتعلم الذكاء الاصطناعي بأن هذا الطراز وتلك البصمة هي أسلوب غش مؤكد ويسجلها في (Learned Rules). وإذا كان إنذاراً كاذباً، يتعلم أن يتجاهله مستقبلاً.</p>
+</div>
+
+<div class="page print-break">
+    <h2>6. الخصوصية والأمان (Privacy by Design)</h2>
+    <p>لما كانت تقنيات استشعار الأجهزة قادرة على توليد مخاوف تتعلق بالخصوصية، فقد تم تصميم ExamShield AI ملتزماً بأشد قواعد الأمان:</p>
+    <ul>
+        <li><strong>لا عمليات اختراق (No Hacking):</strong> النّظام يستمع للموجات المبثوثة علناً بشكل طبيعي ولا يحاول فك تشفير البيانات المرتبطة بالمستخدم أو الاتصال بجهازه القسري.</li>
+        <li><strong>بدون إنترنت (Offline Capability):</strong> صُمم ليكون فعالاً بنسبة كبيرة دون اتصال بالإنترنت في حالة الضرورة القصوى، مما يمنع انتقال معلومات القاعة لأي سيرفرات خارجية بدون إرادة المنشأة.</li>
+        <li><strong>التشفير المحلي:</strong> يتم تخرين البصمات، سجل الأجهزة، ونماذج ذكاء القاعات في قاعدة بيانات التطبيق المحلية المشفرة.</li>
+    </ul>
+
+    <h2>7. الخاتمة والآفاق المستقبلية</h2>
+    <p>لا يعتبر ExamShield AI مجرد أداة لتسجيل الأجهزة العابرة، بل هو <strong>مساعد ذكي ينمو ويتطور</strong>. كلما تم استخدام النظام أكثر، استوعب نماذج الغش المبتكرة، وبنى دفاعات استباقية تجعل اللجان الامتحانية منيعة أمام التحايل التكنولوجي. إن استخدام خوارزميات تحديد المسافات الدقيقة وتوجيه الإشارة، إلى جانب الذكاء التوليدي، يضع هذا التطبيق في طليعة التطبيقات الأكاديمية الأمنية اليوم.</p>
+    
+    <div style="text-align: center; margin-top: 50px;">
+        <hr style="width: 50%; opacity: 0.5;">
+        <p style="color: #95a5a6; font-size: 0.9em;">تم توليد هذا التقرير التفصيلي خصيصاً لمشروع ExamShield AI</p>
+    </div>
+</div>
+
+</body>
+</html>

@@ -6,21 +6,15 @@ import kotlin.math.pow
 /**
  * A use case for estimating the distance of a detected device based on its RSSI value.
  */
-class EstimateDistanceUseCase @Inject constructor(
-    private val roomModelingEngine: com.examshield.ai.domain.ai.RoomModelingEngine
-) {
+class EstimateDistanceUseCase @Inject constructor() {
 
-    /**
-     * Estimates the distance in meters using an environment-aware Log-Distance Path Loss model.
-     *
-     * @param rssi The signal strength in dBm.
-     * @param txPower The average transmit power of the device at 1 meter, in dBm.
-     * @return The estimated distance in meters.
-     */
     operator fun invoke(rssi: Double, txPower: Int = -59): Double {
         if (rssi >= 0.0) return 0.5 
         
-        return roomModelingEngine.adjustDistanceByEnvironment(0.0, rssi.toInt())
+        // n = 2.7 for indoor
+        val n = 2.7
+        val power = (txPower - rssi) / (10.0 * n)
+        return 10.0.pow(power)
     }
 
     /**

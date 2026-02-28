@@ -18,18 +18,20 @@ class MonitorScreenViewModel @Inject constructor(
     private val detectionService: DetectionService,
     private val adaptiveLearningEngine: AdaptiveLearningEngine,
     val performanceAdvisor: com.examshield.ai.domain.ai.AIPerformanceAdvisor,
-    val roomModelingEngine: com.examshield.ai.domain.ai.RoomModelingEngine,
-    val focusTaskManager: com.examshield.ai.domain.ai.FocusTaskManager
+    val localizationController: com.examshield.ai.session.LocalizationSessionController
 ) : ViewModel() {
 
     init {
-        roomModelingEngine.generateSeatGrid()
+        // Initialize localization session with a default hall
+        localizationController.selectHall(com.examshield.ai.localization.HallDefinitions.HallA)
     }
 
-    // Focus State exposure
-    val activeTask = focusTaskManager.activeTask
-    val roomProfile = roomModelingEngine.currentRoom
-    val seatGrid = roomModelingEngine.seatGrid
+    // Localization State exposure
+    val currentHall = localizationController.currentHall
+    val estimatedDevicePos = localizationController.estimatedDevicePos
+    val localizationConfidence = localizationController.confidence
+    val errorRadius = localizationController.errorRadius
+    val supervisorPos = localizationController.motionEngine.currentPosition
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
@@ -76,6 +78,9 @@ class MonitorScreenViewModel @Inject constructor(
         viewModelScope.launch {
             detectionService.observeOrientation().collect { ang ->
                 _azimuth.value = ang
+                if (_isScanning.value) {
+                    localizationController.onMotionUpdate(ang)
+                }
             }
         }
 
@@ -85,6 +90,9 @@ class MonitorScreenViewModel @Inject constructor(
                 // Emit to high-frequency stream for the SignalFinderScreen
                 _rawDetectionStream.emit(result)
                 
+                // --- HYBRID ENGINE FEED ---
+                localizationController.onScanSignal(result.rawObject.signalStrengthRssi)
+
                 // Update the main threat list map reactively
                 val currentMap = _threatListMap.value.toMutableMap()
                 

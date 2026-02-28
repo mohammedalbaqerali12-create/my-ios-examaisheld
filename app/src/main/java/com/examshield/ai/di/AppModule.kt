@@ -89,22 +89,14 @@ object AppModule {
 // Riverside: Registering RoomModelingDao for persistence.
     @Provides
     @Singleton
-    fun provideRoomModelingEngine(): com.examshield.ai.domain.ai.RoomModelingEngine {
-        return com.examshield.ai.domain.ai.RoomModelingEngine()
+    fun provideLocalizationSessionController(): com.examshield.ai.session.LocalizationSessionController {
+        return com.examshield.ai.session.LocalizationSessionController()
     }
 
     @Provides
     @Singleton
-    fun provideFocusTaskManager(): com.examshield.ai.domain.ai.FocusTaskManager {
-        return com.examshield.ai.domain.ai.FocusTaskManager()
-    }
-
-    @Provides
-    @Singleton
-    fun provideEstimateDistanceUseCase(
-        roomModelingEngine: com.examshield.ai.domain.ai.RoomModelingEngine
-    ): EstimateDistanceUseCase {
-        return EstimateDistanceUseCase(roomModelingEngine)
+    fun provideEstimateDistanceUseCase(): EstimateDistanceUseCase {
+        return EstimateDistanceUseCase()
     }
 
     @Provides
@@ -201,8 +193,7 @@ object AppModule {
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-        classifier: DeviceClassifier,
-        focusTaskManager: com.examshield.ai.domain.ai.FocusTaskManager
+        classifier: DeviceClassifier
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -211,8 +202,7 @@ object AppModule {
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
             orientationScanner = orientationScanner,
-            classifier = classifier,
-            focusTaskManager = focusTaskManager
+            classifier = classifier
         )
     }
 }

@@ -48,9 +48,6 @@ fun MonitorScreen(
     val threatList by viewModel.threatList.collectAsState()
     var showAdvisor by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val roomProfile by viewModel.roomProfile.collectAsState()
-    val seats by viewModel.seatGrid.collectAsState()
-    val activeTask by viewModel.activeTask.collectAsState()
     var showTaskPanel by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -105,17 +102,7 @@ fun MonitorScreen(
                     // Room Layout View Removed
                 }
                 
-                if (showTaskPanel) {
-                    ModalBottomSheet(onDismissRequest = { showTaskPanel = false }, containerColor = com.examshield.ai.ui.theme.DarkMatterSurface) {
-                        TaskSelectionPanel(
-                            activeTask = activeTask,
-                            onTaskSelected = { 
-                                viewModel.focusTaskManager.setTask(it)
-                                showTaskPanel = false 
-                            }
-                        )
-                    }
-                }
+                /* Legacy Task Panel Removed */
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
