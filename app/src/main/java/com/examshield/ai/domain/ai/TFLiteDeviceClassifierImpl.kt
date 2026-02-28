@@ -54,62 +54,92 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
     private suspend fun determineDeviceType(detectedObject: DetectedObject): DeviceType {
         val lowerName = detectedObject.name?.lowercase() ?: ""
         val manufacturer = OuiLookup.lookup(detectedObject.macAddress)
+        val extra = detectedObject.extraMetadata
+        
+        // 1. PHYSICAL THREAT DETECTION (Magnetometer)
+        if (detectedObject.macAddress == "MAGNETIC_FIELD_ANOMALY") {
+             val vector = detectedObject.sensorVector
+             if (vector != null) {
+                 val magnitude = kotlin.math.sqrt(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2])
+                 return if (magnitude > 150) DeviceType.NANO_EARPIECE else DeviceType.MAGNETIC_ANOMALY
+             }
+             return DeviceType.MAGNETIC_ANOMALY
+        }
 
-        // Fast-path cheating keywords in the Name
+        // 2. CHEATING GEAR SIGNATURES
         if (lowerName.contains("spy") || lowerName.contains("mini") || 
             lowerName.contains("vip") || lowerName.contains("s530") ||
-            lowerName.matches(Regex(".*[a-z]\\d{2,}.*"))) { // e.g., obscure model numbers
+            lowerName.matches(Regex(".*[a-z]\\d{2,}.*"))) {
             return DeviceType.NANO_EARPIECE
         }
 
-        // Priority 1: OUI-based internet lookup
-        if (manufacturer != null) {
-            val type = when (manufacturer) {
-                "Apple" -> when {
-                    lowerName.contains("watch") -> DeviceType.SMARTWATCH
-                    lowerName.contains("airpods") -> DeviceType.WIRELESS_EARBUD
-                    else -> DeviceType.SMARTPHONE // Default for Apple
-                }
-                "Samsung" -> when {
-                    lowerName.contains("watch") -> DeviceType.SMARTWATCH
-                    lowerName.contains("buds") -> DeviceType.WIRELESS_EARBUD
-                    else -> DeviceType.SMARTPHONE // Default for Samsung
-                }
-                "Google", "Huawei", "Oppo", "Vivo", "OnePlus", "Motorola", "Realme", "Sony", "Nokia", "ZTE", "Asus", "Lenovo" -> DeviceType.SMARTPHONE
-                "Xiaomi" -> when {
-                    lowerName.contains("watch") || lowerName.contains("band") -> DeviceType.SMARTWATCH
-                    lowerName.contains("buds") || lowerName.contains("ear") -> DeviceType.WIRELESS_EARBUD
-                    else -> DeviceType.SMARTPHONE
-                }
-                "Anker", "Jabra", "Bose", "Sennheiser" -> DeviceType.WIRELESS_EARBUD
-                else -> null // Fallthrough to heuristics
-            }
-            if (type != null) {
-                return type
-            }
-        }
+        // 3. INFRASTRUCTURE SCANNING (Routers/Towers)
+        val isInfrastructure = lowerName.contains("tower") || lowerName.contains("booster") || 
+                               lowerName.contains("mesh") || lowerName.contains("extender") || 
+                               lowerName.contains("router") || lowerName.contains("tp-link") ||
+                               lowerName.contains("tenda") || lowerName.contains("mercys") ||
+                               (manufacturer?.lowercase()?.contains("tp-link") == true)
+        
+        if (isInfrastructure) return DeviceType.ROUTER_INFRASTRUCTURE
 
-        // Priority 2: MAC Randomization Check (Modern OS features)
-        // If the second char is 2, 6, A, or E, it's a Locally Administered (Randomized) MAC
+        // 4. SMART-PERIPHERAL SIGNATURES (Watches & Buds)
+        val isAudioSignature = lowerName.contains("buds") || lowerName.contains("ear") || 
+                               lowerName.contains("airpod") || lowerName.contains("audio") ||
+                               lowerName.contains("headset")
+                               
+        val isWearableSignature = lowerName.contains("watch") || lowerName.contains("band") || 
+                                 lowerName.contains("fitbit") || lowerName.contains("garmin")
+
+        // 5. SMARTPHONE SIGNATURE (The "Astra" Algorithm)
+        // Phones typically have Randomized MACs AND are connectable AND often broadcast multiple services
         val isRandomizedMac = detectedObject.macAddress.length >= 2 && 
                               detectedObject.macAddress[1].lowercaseChar() in listOf('2', '6', 'a', 'e')
+        
+        val txPower = extra["txPower"] as? Int ?: -1
+        val isConnectable = extra["isConnectable"] as? Boolean ?: false
+        
+        // High confidence Phone signature: Randomized MAC + High Power/Connectable
+        val isModernPhone = isRandomizedMac && (isConnectable || txPower > -50)
 
-        // Priority 3: Deep Offline Heuristics
+        // 6. MULTI-FACTOR CLASSIFICATION
         return when {
-            lowerName.contains("watch") || lowerName.contains("band") -> DeviceType.SMARTWATCH
-            lowerName.contains("phone") || lowerName.contains("iphone") || lowerName.contains("galaxy") || lowerName.startsWith("direct-") -> DeviceType.SMARTPHONE
-            lowerName.contains("buds") || lowerName.contains("airpod") || lowerName.contains("ear") -> DeviceType.WIRELESS_EARBUD
+            // Priority 1: Direct matches
+            isWearableSignature -> DeviceType.SMARTWATCH
+            isAudioSignature -> DeviceType.WIRELESS_EARBUD
             
-            // Unnamed BLE devices that are NOT randomized are highly suspicious (Earpieces/Modules)
+            // Priority 2: Manufacturer Intent
+            manufacturer != null -> {
+                val mLower = manufacturer.lowercase()
+                when {
+                    mLower.contains("apple") || mLower.contains("samsung") || mLower.contains("google") ||
+                    mLower.contains("huawei") || mLower.contains("oppo") || mLower.contains("vivo") ||
+                    mLower.contains("oneplus") || mLower.contains("motorola") || mLower.contains("xiaomi") -> {
+                        // Refine based on specific signatures inside known phone brands
+                        if (isAudioSignature) DeviceType.WIRELESS_EARBUD
+                        else if (isWearableSignature) DeviceType.SMARTWATCH
+                        else DeviceType.SMARTPHONE
+                    }
+                    mLower.contains("anker") || mLower.contains("jabra") || mLower.contains("bose") -> DeviceType.WIRELESS_EARBUD
+                    else -> if (isModernPhone) DeviceType.SMARTPHONE else DeviceType.SUSPICIOUS_UNKNOWN
+                }
+            }
+
+            // Priority 3: Heuristic fallbacks
+            isModernPhone -> DeviceType.SMARTPHONE
+            lowerName.contains("phone") || lowerName.contains("iphone") || lowerName.contains("galaxy") || lowerName.startsWith("direct-") -> DeviceType.SMARTPHONE
+            
+            // Unnamed non-randomized BLE is highly suspicious for hidden modules
             detectedObject.isBle && detectedObject.name.isNullOrBlank() && !isRandomizedMac -> DeviceType.NANO_EARPIECE
             
-            // Randomized MACs strongly indicate a modern OS (Smartphone/Tablet) rotating its MAC for privacy
-            // This applies to BLE, Classic BT, and Wi-Fi probe requests natively
-            isRandomizedMac -> DeviceType.SMARTPHONE 
+            isRandomizedMac -> {
+                if (detectedObject.isWifi && (detectedObject.name.isNullOrBlank() || detectedObject.name == "Hidden Network")) {
+                    DeviceType.SUSPICIOUS_UNKNOWN
+                } else {
+                    DeviceType.SMARTPHONE
+                }
+            }
             
-            // Classic Bluetooth with no name is highly indicative of cheap spy earpieces
             detectedObject.isClassicBluetooth && detectedObject.name.isNullOrBlank() -> DeviceType.NANO_EARPIECE
-            detectedObject.macAddress == "MAGNETIC_FIELD_ANOMALY" -> DeviceType.MAGNETIC_ANOMALY
             else -> DeviceType.SUSPICIOUS_UNKNOWN
         }
     }
@@ -119,6 +149,7 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
             DeviceType.SMARTWATCH, DeviceType.SMARTPHONE -> 85
             DeviceType.WIRELESS_EARBUD, DeviceType.NANO_EARPIECE -> 75
             DeviceType.MAGNETIC_ANOMALY -> 90 // High confidence as it's a direct physical detection
+            DeviceType.ROUTER_INFRASTRUCTURE -> 30 // Low confidence as these are filtered out anyway
             DeviceType.SUSPICIOUS_UNKNOWN -> 50
         }
 

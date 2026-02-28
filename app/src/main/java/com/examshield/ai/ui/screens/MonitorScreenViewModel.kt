@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,8 +32,13 @@ class MonitorScreenViewModel @Inject constructor(
         it.values.toList()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // High-frequency stream for the Radar screen to track orientation in real-time
+    private val _rawDetectionStream = MutableSharedFlow<ClassificationResult>(replay = 0, extraBufferCapacity = 64)
+    val rawDetectionStream = _rawDetectionStream.asSharedFlow()
+
     // A fully thread-safe invisible basket to collect hardware pings at maximum speed
     private val backgroundDataCache = ConcurrentHashMap<String, ClassificationResult>()
+    private var scanningJob: kotlinx.coroutines.Job? = null
 
     fun toggleScan() {
         if (_isScanning.value) {
@@ -42,14 +49,22 @@ class MonitorScreenViewModel @Inject constructor(
     }
 
     private fun startScanning() {
+        if (_isScanning.value) return // Already scanning
+        
         _isScanning.value = true
         _threatListMap.value = emptyMap() // clear old visual results
         backgroundDataCache.clear() // clear old background cache
+        
+        // Cancel any lingering job just in case
+        scanningJob?.cancel()
 
         // 1. Silent Hardware Collector (Runs as fast as possible without disturbing UI)
-        viewModelScope.launch {
+        scanningJob = viewModelScope.launch {
             detectionService.observeThreats().collect { result ->
-                // Only collect highly confident or suspicious data
+                // Emit to high-frequency stream for UI components that need real-time data
+                _rawDetectionStream.emit(result)
+                
+                // Only collect highly confident or suspicious data for the main list
                 if (result.deviceType != DeviceType.SUSPICIOUS_UNKNOWN || result.confidenceScore > 60) {
                     backgroundDataCache[result.rawObject.macAddress] = result
                 }
@@ -70,6 +85,8 @@ class MonitorScreenViewModel @Inject constructor(
 
     private fun stopScanning() {
         _isScanning.value = false
+        scanningJob?.cancel()
+        scanningJob = null
         detectionService.stop()
         backgroundDataCache.clear()
     }

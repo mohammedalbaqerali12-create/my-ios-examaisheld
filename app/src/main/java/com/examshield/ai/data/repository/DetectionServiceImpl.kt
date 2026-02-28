@@ -30,6 +30,8 @@ class DetectionServiceImpl(
     private val MAX_HISTORY_SIZE = 2
 
     override fun observeThreats(): Flow<ClassificationResult> {
+        var lastMagneticAnomalyTime = 0L
+        
         // Sensor Fusion: Merge all scanning methods into one consistent stream
         val mergedScanners = merge(
             bleScanner.startScanning(),
@@ -40,26 +42,37 @@ class DetectionServiceImpl(
         )
 
         return mergedScanners
-            .buffer(capacity = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST) // Handle massive spikes (e.g. walking into a crowded exam hall) without crashing or OOM
+            .buffer(capacity = 100, onBufferOverflow = BufferOverflow.DROP_OLDEST)
             .map { detectedObj ->
-                // For non-signal based detections, we can skip smoothing
                 if (detectedObj.macAddress == "MAGNETIC_FIELD_ANOMALY") {
+                    lastMagneticAnomalyTime = System.currentTimeMillis()
                     return@map classifier.classify(detectedObj)
                 }
 
-                // 1. Apply Exponential/Simple Moving Average to RSSI
                 val smoothedRssi = getSmoothedRssi(detectedObj.macAddress, detectedObj.signalStrengthRssi)
-                
-                // 2. Create optimized object with hardware signal noise reduced
                 val optimizedObj = detectedObj.copy(signalStrengthRssi = smoothedRssi)
-
-                // 3. Forward to local AI (TFLite logic) & Online API for classification
-                classifier.classify(optimizedObj)
+                
+                val baseClassification = classifier.classify(optimizedObj)
+                
+                // --- SENSOR FUSION CORRELATION ---
+                // If a magnetic anomaly was detected within the last 5 seconds and an RF device is found
+                // within the IMMEDIATE or NEAR zone, escalate the threat intelligence.
+                val timeSinceMagnet = System.currentTimeMillis() - lastMagneticAnomalyTime
+                val isNearRF = baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE || 
+                             baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR
+                
+                if (timeSinceMagnet < 5000 && isNearRF) {
+                    baseClassification.copy(
+                        riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
+                        confidenceScore = (baseClassification.confidenceScore + 20).coerceAtMost(100)
+                    )
+                } else {
+                    baseClassification
+                }
             }
             .filter { classificationResult -> 
-                // FILTER: Silently drop routers and irrelevant network noise.
-                // We only care about Smartphones, Smartwatches, and Earpieces.
-                classificationResult.deviceType != com.examshield.ai.domain.model.DeviceType.SUSPICIOUS_UNKNOWN 
+                classificationResult.deviceType != com.examshield.ai.domain.model.DeviceType.SUSPICIOUS_UNKNOWN &&
+                classificationResult.deviceType != com.examshield.ai.domain.model.DeviceType.ROUTER_INFRASTRUCTURE
             }
             .flowOn(Dispatchers.Default) // Shift heavy mapping, lists, and AI out of the main hardware collection thread
     }

@@ -56,6 +56,7 @@ class MagneticFieldScannerImpl @Inject constructor(
                             isWifi = false,
                             isBle = false,
                             isClassicBluetooth = false,
+                            sensorVector = floatArrayOf(x, y, z),
                             timestampMs = System.currentTimeMillis()
                         )
                         trySend(detectedObj)

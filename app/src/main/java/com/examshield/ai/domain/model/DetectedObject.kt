@@ -8,5 +8,7 @@ data class DetectedObject(
     val isBle: Boolean = false,
     val isClassicBluetooth: Boolean = false,
     val rawData: ByteArray? = null,
+    val sensorVector: FloatArray? = null,
+    val extraMetadata: Map<String, Any> = emptyMap(),
     val timestampMs: Long = System.currentTimeMillis()
 )

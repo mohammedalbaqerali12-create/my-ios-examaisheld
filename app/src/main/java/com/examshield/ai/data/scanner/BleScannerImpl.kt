@@ -52,6 +52,10 @@ class BleScannerImpl @Inject constructor(
                     isBle = true,
                     isClassicBluetooth = false, // You'd need a separate BroadcastReceiver for Classic BT discovery
                     rawData = result.scanRecord?.bytes,
+                    extraMetadata = mapOf(
+                        "txPower" to (result.scanRecord?.txPowerLevel ?: -1),
+                        "isConnectable" to result.isConnectable
+                    ),
                     timestampMs = System.currentTimeMillis()
                 )
 
