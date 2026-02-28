@@ -48,19 +48,51 @@ class FusionEngine {
         return trilatPos ?: supervisorPos
     }
 
+    fun fuseWithWalkLogic(
+        supervisorPos: Vector2D,
+        gradientBearing: Float?,
+        gradientDist: Float,
+        trilatPos: Vector2D?,
+        trilatResidual: Float,
+        isWalkMode: Boolean
+    ): Vector2D {
+        if (trilatPos != null) {
+            if (isWalkMode) {
+                // In Walk Mode, we trust the multi-point triangulation results significantly more
+                // as long as the residual is manageable.
+                val weightTrilat = 1.0f / (trilatResidual + 0.1f)
+                val weightGrad = 0.2f // Dampen gradient in pure walk mode
+                
+                if (gradientBearing != null) {
+                    val rad = Math.toRadians(gradientBearing.toDouble())
+                    val gx = (supervisorPos.x + gradientDist * cos(rad).toFloat())
+                    val gy = (supervisorPos.y + gradientDist * sin(rad).toFloat())
+                    
+                    val wSum = weightTrilat + weightGrad
+                    return Vector2D(
+                        (trilatPos.x * weightTrilat + gx * weightGrad) / wSum,
+                        (trilatPos.y * weightTrilat + gy * weightGrad) / wSum
+                    )
+                }
+                return trilatPos
+            }
+            return fuseEstimates(supervisorPos, gradientBearing, gradientDist, trilatPos, trilatResidual, 5.0f)
+        }
+        return supervisorPos
+    }
+
     fun computeConfidenceScore(
         sampleCount: Int,
         rssiVariance: Float,
         trilatResidual: Float
     ): Int {
-        var score = 0
-        if (sampleCount >= 3) score += 40
-        if (sampleCount >= 6) score += 20
+        var score = (sampleCount * 12).coerceAtMost(60) // Linear growth up to 60% with samples
         
         if (trilatResidual < 0.5f) score += 30
-        else if (trilatResidual < 1.5f) score += 15
+        else if (trilatResidual < 1.0f) score += 20
+        else if (trilatResidual < 2.0f) score += 10
         
-        if (rssiVariance < 2.0f) score += 10
+        if (rssiVariance < 4.0f) score += 10
         
         return score.coerceIn(0, 100)
     }

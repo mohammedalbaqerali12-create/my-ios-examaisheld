@@ -208,6 +208,10 @@ class DetectionServiceImpl(
         return orientationScanner.observeOrientation()
     }
 
+    fun observeSteps(): Flow<Float> {
+        return orientationScanner.observeSteps()
+    }
+
     override fun stop() {
         bleScanner.stopScanning()
         classicBluetoothScanner.stopScanning()

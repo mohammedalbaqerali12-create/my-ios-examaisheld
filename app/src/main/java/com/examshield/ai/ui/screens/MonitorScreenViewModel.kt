@@ -32,6 +32,9 @@ class MonitorScreenViewModel @Inject constructor(
     val localizationConfidence = localizationController.confidence
     val errorRadius = localizationController.errorRadius
     val supervisorPos = localizationController.motionEngine.currentPosition
+    val localizationState = localizationController.stateMachine.state
+    
+    fun getTrilaterationSamples() = localizationController.trilatEngine.getSamples()
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
@@ -79,9 +82,19 @@ class MonitorScreenViewModel @Inject constructor(
             detectionService.observeOrientation().collect { ang ->
                 _azimuth.value = ang
                 if (_isScanning.value) {
-                    localizationController.onMotionUpdate(ang)
+                    localizationController.onHeadingUpdate(ang)
                 }
             }
+        }
+
+        // --- NEW: Physical Step Trigger ---
+        viewModelScope.launch {
+            (detectionService as com.examshield.ai.data.repository.DetectionServiceImpl)
+                .observeSteps().collect { angAtStep ->
+                    if (_isScanning.value) {
+                         localizationController.onStepDetected(angAtStep)
+                    }
+                }
         }
 
         // 1. Reactive Collector from Service (Zero-Latency)

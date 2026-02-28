@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class LocalizationState {
     INITIALIZING,
     TRACKING_MOTION,
+    WALK_SAMPLING_MODE, // NEW: Rapid triangulation by walking
     COLLECTING_SAMPLES,
     FUSING_FIX,
     LOCALIZED,

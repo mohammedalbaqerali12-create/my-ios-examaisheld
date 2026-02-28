@@ -30,6 +30,10 @@ fun SignalFinderScreen(
     val estimatedPos by viewModel.estimatedDevicePos.collectAsState()
     val confidence by viewModel.localizationConfidence.collectAsState()
     val errorRadius by viewModel.errorRadius.collectAsState()
+    val locState by viewModel.localizationState.collectAsState()
+    val identifiedTargets by viewModel.localizationController.targetPoints.collectAsState()
+    
+    val samples = viewModel.getTrilaterationSamples()
 
     Column(
         modifier = Modifier
@@ -40,7 +44,7 @@ fun SignalFinderScreen(
     ) {
         // High-Tech Localization Header
         Text(
-            text = "نظام التموضع الداخلي الهجين",
+            text = "نظام التموضع الداخلي الهجين - V2",
             color = Color.Cyan,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -68,6 +72,9 @@ fun SignalFinderScreen(
                 supervisorPos = supervisorPos,
                 devicePos = estimatedPos,
                 errorRadius = errorRadius,
+                samples = samples,
+                identifiedTargets = identifiedTargets,
+                isWalkMode = locState == LocalizationState.WALK_SAMPLING_MODE,
                 modifier = Modifier.fillMaxSize()
             )
             
@@ -77,19 +84,38 @@ fun SignalFinderScreen(
                 confidence = (confidence.toFloat() / 100f),
                 modifier = Modifier.fillMaxSize()
             )
+            
+            // Mode Indicator
+            Surface(
+                color = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green.copy(alpha = 0.8f) else Color.Cyan.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.padding(12.dp).align(Alignment.TopStart)
+            ) {
+                Text(
+                    text = if (locState == LocalizationState.WALK_SAMPLING_MODE) "LIVE WALK TRACKING ACTIVE" else "IDLE SCAN",
+                    color = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Black else Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // CONTROL PANEL
         LocalizationDashboard(
             confidence = confidence,
             errorRadius = errorRadius,
             supervisorPos = supervisorPos,
+            locState = locState,
             onRecordSample = {
                 targetDevice?.let {
                     viewModel.localizationController.recordSample(it.rawObject.signalStrengthRssi)
                 }
+            },
+            onToggleWalkMode = {
+                viewModel.localizationController.startWalkSampling()
             }
         )
     }
@@ -100,7 +126,9 @@ fun LocalizationDashboard(
     confidence: Int,
     errorRadius: Float,
     supervisorPos: Vector2D,
-    onRecordSample: () -> Unit
+    locState: LocalizationState,
+    onRecordSample: () -> Unit,
+    onToggleWalkMode: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -112,28 +140,44 @@ fun LocalizationDashboard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            InfoBlock("الدقة (الثقة)", "$confidence%", if (confidence > 70) Color.Green else Color.Yellow)
-            InfoBlock("نطاق الخطأ", "± ${"%.1f".format(errorRadius)} متر", Color.Red)
+            val confColor = when {
+                confidence > 85 -> Color.Green
+                confidence > 50 -> Color.Yellow
+                else -> Color.Red
+            }
+            InfoBlock("نسبة الثقة", "$confidence%", confColor)
+            InfoBlock("نطاق الخطأ", "± ${"%.1f".format(errorRadius)} م", Color.Red)
             InfoBlock("إحداثياتك", "(${supervisorPos.x.toInt()}, ${supervisorPos.y.toInt()})", Color.Cyan)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = onRecordSample,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Text("تسجيل عينة موقع (Record Position Sample)", color = Color.Black, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onRecordSample,
+                modifier = Modifier.weight(1f).height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text("تسجيل عينة", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            
+            Button(
+                onClick = onToggleWalkMode,
+                modifier = Modifier.weight(1f).height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green else Color.DarkGray
+                ),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    if (locState == LocalizationState.WALK_SAMPLING_MODE) "وضع المشي نشط" else "تفعيل تتبع المشي",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
         }
-        
-        Text(
-            text = "للحصول على أفضل النتائج، سجل 3 عينات من زوايا مختلفة",
-            color = Color.White.copy(alpha = 0.4f),
-            fontSize = 10.sp,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
-        )
     }
 }
 
