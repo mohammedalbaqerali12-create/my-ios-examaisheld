@@ -97,6 +97,15 @@ class MonitorScreenViewModel @Inject constructor(
                 }
         }
 
+        // --- NEW: GPS Trigger ---
+        viewModelScope.launch {
+            detectionService.observeLocation().collect { location ->
+                if (_isScanning.value) {
+                    localizationController.onLocationUpdate(location.latitude, location.longitude)
+                }
+            }
+        }
+
         // 1. Reactive Collector from Service (Zero-Latency)
         scanningJob = viewModelScope.launch {
             com.examshield.ai.service.AstraNexusService.detectionStream.collect { result ->

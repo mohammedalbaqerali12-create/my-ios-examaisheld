@@ -32,6 +32,16 @@ class LocalizationSessionController @Inject constructor() {
     private val _targetPoints = MutableStateFlow<List<Vector2D>>(emptyList())
     val targetPoints = _targetPoints.asStateFlow()
 
+    private val _currentGpsLoc = MutableStateFlow<Pair<Double, Double>?>(null)
+    val currentGpsLoc = _currentGpsLoc.asStateFlow()
+
+    private val _targetGps = MutableStateFlow<Pair<Double, Double>?>(null)
+    val targetGps = _targetGps.asStateFlow()
+
+    private var refLat: Double? = null
+    private var refLon: Double? = null
+    private val METERS_PER_LAT = 111320.0
+    
     private var lastVibrateTime = 0L
 
     // WALK_SAMPLING_MODE State
@@ -48,6 +58,42 @@ class LocalizationSessionController @Inject constructor() {
         _confidence.value = 0
         lastSamplePos = null
         _targetPoints.value = emptyList()
+        refLat = null
+        refLon = null
+        _currentGpsLoc.value = null
+    }
+
+    /**
+     * Called on GPS update. Maps Lat/Long to X/Y relative to start.
+     */
+    fun onLocationUpdate(lat: Double, lon: Double) {
+        _currentGpsLoc.value = Pair(lat, lon)
+        
+        if (refLat == null) {
+            refLat = lat
+            refLon = lon
+        }
+
+        // Convert GPS to Meters relative to reference point
+        val dx = (lon - refLon!!) * METERS_PER_LAT * Math.cos(Math.toRadians(lat))
+        val dy = (lat - refLat!!) * METERS_PER_LAT
+        
+        // We can optionally update motionEngine with this absolute fix or just use it for auto-sampling
+        // FOR NOW: Treat GPS as the trigger for "Record Sample" when walking
+        
+        val currentRssi = if (rssiBuffer.isNotEmpty()) rssiBuffer.last() else -90
+        
+        if (stateMachine.state.value == LocalizationState.WALK_SAMPLING_MODE) {
+             val currentPos = motionEngine.currentPosition.value
+             val distSinceLast = lastSamplePos?.let { 
+                 Math.sqrt(Math.pow((currentPos.x - it.x).toDouble(), 2.0) + Math.pow((currentPos.y - it.y).toDouble(), 2.0))
+             } ?: Double.MAX_VALUE
+             
+             if (distSinceLast > 1.0) {
+                 recordSample(currentRssi)
+                 lastSamplePos = currentPos
+             }
+        }
     }
 
     /**
@@ -174,6 +220,13 @@ class LocalizationSessionController @Inject constructor() {
 
         _estimatedDevicePos.value = finalPos
         
+        // COMPUTE TARGET GPS
+        if (finalPos != null && refLat != null && refLon != null) {
+            val targetLat = refLat!! + (finalPos.y / METERS_PER_LAT)
+            val targetLon = refLon!! + (finalPos.x / (METERS_PER_LAT * Math.cos(Math.toRadians(refLat!!))))
+            _targetGps.value = Pair(targetLat, targetLon)
+        }
+
         // CONFIDENCE EVOLUTION
         val sampleCount = trilatEngine.getSamples().size
         val newConfidence = fusionEngine.computeConfidenceScore(

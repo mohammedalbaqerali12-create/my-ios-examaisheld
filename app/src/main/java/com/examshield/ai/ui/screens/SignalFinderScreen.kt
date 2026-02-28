@@ -33,6 +33,9 @@ fun SignalFinderScreen(
     val locState by viewModel.localizationState.collectAsState()
     val identifiedTargets by viewModel.localizationController.targetPoints.collectAsState()
     
+    val supervisorGps by viewModel.localizationController.currentGpsLoc.collectAsState()
+    val targetGps by viewModel.localizationController.targetGps.collectAsState()
+    
     val samples = viewModel.getTrilaterationSamples()
 
     Column(
@@ -44,7 +47,7 @@ fun SignalFinderScreen(
     ) {
         // High-Tech Localization Header
         Text(
-            text = "نظام التموضع الداخلي الهجين - V2",
+            text = "نظام التموضع العالمي الهجين (Hybrid GPT-Engine)",
             color = Color.Cyan,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -59,13 +62,13 @@ fun SignalFinderScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // HYBRID GRID VIEW
+        // HYBRID GRID VIEW (GPS Mapped)
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, Color.Cyan.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                .border(2.dp, Color.Cyan.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
         ) {
             HallGridView(
                 hall = currentHall,
@@ -85,35 +88,27 @@ fun SignalFinderScreen(
                 modifier = Modifier.fillMaxSize()
             )
             
-            // Mode Indicator
+            // GPS Tracker Pin
             Surface(
-                color = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green.copy(alpha = 0.8f) else Color.Cyan.copy(alpha = 0.1f),
+                color = Color.Black.copy(alpha = 0.7f),
                 shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.padding(12.dp).align(Alignment.TopStart)
+                modifier = Modifier.padding(12.dp).align(Alignment.BottomStart)
             ) {
-                Text(
-                    text = if (locState == LocalizationState.WALK_SAMPLING_MODE) "LIVE WALK TRACKING ACTIVE" else "IDLE SCAN",
-                    color = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Black else Color.White,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text("إحداثيات المشرف (GPS):", color = Color.Gray, fontSize = 8.sp)
+                    Text("${supervisorGps?.first ?: 0.0}, ${supervisorGps?.second ?: 0.0}", color = Color.Cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // CONTROL PANEL
+        // GPS & AI STATUS DASHBOARD
         LocalizationDashboard(
             confidence = confidence,
             errorRadius = errorRadius,
-            supervisorPos = supervisorPos,
+            targetGps = targetGps,
             locState = locState,
-            onRecordSample = {
-                targetDevice?.let {
-                    viewModel.localizationController.recordSample(it.rawObject.signalStrengthRssi)
-                }
-            },
             onToggleWalkMode = {
                 viewModel.localizationController.startWalkSampling()
             }
@@ -125,9 +120,8 @@ fun SignalFinderScreen(
 fun LocalizationDashboard(
     confidence: Int,
     errorRadius: Float,
-    supervisorPos: Vector2D,
+    targetGps: Pair<Double, Double>?,
     locState: LocalizationState,
-    onRecordSample: () -> Unit,
     onToggleWalkMode: () -> Unit
 ) {
     Column(
@@ -145,39 +139,45 @@ fun LocalizationDashboard(
                 confidence > 50 -> Color.Yellow
                 else -> Color.Red
             }
-            InfoBlock("نسبة الثقة", "$confidence%", confColor)
-            InfoBlock("نطاق الخطأ", "± ${"%.1f".format(errorRadius)} م", Color.Red)
-            InfoBlock("إحداثياتك", "(${supervisorPos.x.toInt()}, ${supervisorPos.y.toInt()})", Color.Cyan)
+            InfoBlock("ثقة الذكاء الاصطناعي", "$confidence%", confColor)
+            InfoBlock("دقة التموضع", "± ${"%.1f".format(errorRadius)} م", Color.Red)
+            
+            Column {
+                Text("إحداثيات الهدف (Target GPS)", color = Color.Gray, fontSize = 9.sp)
+                Text(
+                    text = if (targetGps != null) "${"%.5f".format(targetGps.first)}, ${"%.5f".format(targetGps.second)}" else "جاري الحساب...",
+                    color = Color.Yellow,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onRecordSample,
-                modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Text("تسجيل عينة", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            }
-            
-            Button(
-                onClick = onToggleWalkMode,
-                modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green else Color.DarkGray
-                ),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Text(
-                    if (locState == LocalizationState.WALK_SAMPLING_MODE) "وضع المشي نشط" else "تفعيل تتبع المشي",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-            }
+        // SINGLE AUTOMATIC BUTTON
+        Button(
+            onClick = onToggleWalkMode,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00FF00) else Color.Cyan
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                if (locState == LocalizationState.WALK_SAMPLING_MODE) "التتبع الآلي للهدف نشط (GPS Enabled)" else "تفعيل المسح الجغرافي الآلي (GPS Mode)",
+                color = Color.Black,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp
+            )
         }
+        
+        Text(
+            text = "النظام الآن يسجل العينات آلياً عبر الجيبيس عند المشي لتحليل الذكاء الاصطناعي.",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 10.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp)
+        )
     }
 }
 

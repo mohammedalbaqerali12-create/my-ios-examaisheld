@@ -180,6 +180,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideLocationScanner(@ApplicationContext context: Context): com.examshield.ai.data.scanner.LocationScannerImpl {
+        return com.examshield.ai.data.scanner.LocationScannerImpl(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideAiIntelligenceService(): com.examshield.ai.domain.ai.AiIntelligenceService {
         return com.examshield.ai.data.remote.OpenAiIntelligenceServiceImpl()
     }
@@ -193,6 +199,7 @@ object AppModule {
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
+        locationScanner: com.examshield.ai.data.scanner.LocationScannerImpl,
         classifier: DeviceClassifier
     ): DetectionService {
         return DetectionServiceImpl(
@@ -202,6 +209,7 @@ object AppModule {
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
             orientationScanner = orientationScanner,
+            locationScanner = locationScanner,
             classifier = classifier
         )
     }
