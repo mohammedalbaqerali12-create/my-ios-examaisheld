@@ -11,6 +11,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.net.DatagramPacket
@@ -27,12 +30,14 @@ class SwarmMeshService @Inject constructor(
     private var isMeshActive = false
     private var receiveJob: Job? = null
     private var broadcastJob: Job? = null
-    private val PORT = 44556 // Cyber-secure port
+    private val PORT = 44556
     private var socket: DatagramSocket? = null
 
-    // Stream for external components to listen to incoming Swarm Intel
-    private val _swarmIntelStream = MutableSharedFlow<SwarmIntel>()
-    val swarmIntelStream: SharedFlow<SwarmIntel> = _swarmIntelStream
+    private val _swarmIntelStream = MutableSharedFlow<SwarmMessage>()
+    val swarmIntelStream: SharedFlow<SwarmMessage> = _swarmIntelStream
+
+    private val _activeNodes = MutableStateFlow<Set<String>>(emptySet())
+    val activeNodes: StateFlow<Set<String>> = _activeNodes.asStateFlow()
 
     fun startSwarm() {
         if (isMeshActive) return
@@ -44,9 +49,19 @@ class SwarmMeshService @Inject constructor(
                 broadcast = true
             }
             startReceiver()
+            startStatusHeartbeat()
         } catch (e: Exception) {
             Log.e("SwarmMesh", "Failed to bind swarm socket: ${e.message}")
             isMeshActive = false
+        }
+    }
+
+    private fun startStatusHeartbeat() {
+        broadcastJob = scope.launch {
+            while (isMeshActive) {
+                broadcastStatus()
+                delay(3000)
+            }
         }
     }
 
@@ -68,28 +83,35 @@ class SwarmMeshService @Inject constructor(
         }
     }
 
-    fun broadcastThreat(threat: ClassificationResult) {
+    fun broadcastStatus() {
         if (!isMeshActive || socket == null) return
-
         scope.launch {
             try {
-                // Ensure only Level 4 or high confidence threats are broadcasted to prevent spam
+                val json = JSONObject().apply {
+                    put("type", "NODE_STATUS")
+                    put("nodeId", android.os.Build.MODEL)
+                }
+                sendPacket(json.toString())
+            } catch (e: Exception) {
+                Log.e("SwarmMesh", "Status Broadcast Error: ${e.message}")
+            }
+        }
+    }
+
+    fun broadcastThreat(threat: ClassificationResult) {
+        if (!isMeshActive || socket == null) return
+        scope.launch {
+            try {
                 if (threat.confidenceScore > 80 || threat.isNexusVerified) {
                     val json = JSONObject().apply {
+                        put("type", "THREAT_INTEL")
                         put("mac", threat.rawObject.macAddress)
                         put("rssi", threat.rawObject.signalStrengthRssi)
-                        put("type", threat.deviceType.name)
+                        put("deviceType", threat.deviceType.name)
                         put("confidence", threat.confidenceScore)
+                        put("sourceNode", android.os.Build.MODEL)
                     }
-
-                    val message = json.toString().toByteArray()
-                    val broadcastAddress = getBroadcastAddress()
-                    
-                    if (broadcastAddress != null) {
-                        val packet = DatagramPacket(message, message.size, broadcastAddress, PORT)
-                        socket?.send(packet)
-                        Log.d("SwarmMesh", "BROADCASTED THREAT: ${threat.rawObject.macAddress}")
-                    }
+                    sendPacket(json.toString())
                 }
             } catch (e: Exception) {
                  Log.e("SwarmMesh", "Broadcast error: ${e.message}")
@@ -97,17 +119,43 @@ class SwarmMeshService @Inject constructor(
         }
     }
 
+    private fun sendPacket(message: String) {
+        try {
+            val bytes = message.toByteArray()
+            val address = getBroadcastAddress()
+            if (address != null) {
+                val packet = DatagramPacket(bytes, bytes.size, address, PORT)
+                socket?.send(packet)
+            }
+        } catch (e: Exception) {
+            Log.e("SwarmMesh", "Send failed: ${e.message}")
+        }
+    }
+
     private suspend fun parseAndEmitIntel(jsonString: String) {
         try {
             val json = JSONObject(jsonString)
-            val intel = SwarmIntel(
-                macAddress = json.getString("mac"),
-                rssi = json.getInt("rssi"),
-                deviceType = json.getString("type"),
-                confidence = json.getInt("confidence")
-            )
-            _swarmIntelStream.emit(intel)
-            Log.d("SwarmMesh", "SWARM INTEL RECEIVED: ${intel.macAddress}")
+            val type = json.optString("type")
+            
+            when(type) {
+                "NODE_STATUS" -> {
+                    val nodeId = json.getString("nodeId")
+                    if (nodeId != android.os.Build.MODEL) {
+                        _activeNodes.value = _activeNodes.value + nodeId
+                    }
+                    _swarmIntelStream.emit(SwarmMessage.NodeStatus(nodeId))
+                }
+                "THREAT_INTEL" -> {
+                    val intel = SwarmMessage.ThreatIntel(
+                        macAddress = json.getString("mac"),
+                        rssi = json.getInt("rssi"),
+                        deviceType = json.getString("deviceType"),
+                        confidence = json.getInt("confidence"),
+                        sourceNode = json.getString("sourceNode")
+                    )
+                    _swarmIntelStream.emit(intel)
+                }
+            }
         } catch (e: Exception) {
              Log.e("SwarmMesh", "Corrupted Swarm Data: ${e.message}")
         }
@@ -124,7 +172,6 @@ class SwarmMeshService @Inject constructor(
             }
             InetAddress.getByAddress(quads)
         } catch (e: Exception) {
-            // Fallback to absolute local broadcast
             InetAddress.getByName("255.255.255.255")
         }
     }
@@ -135,13 +182,18 @@ class SwarmMeshService @Inject constructor(
         broadcastJob?.cancel()
         socket?.close()
         socket = null
+        _activeNodes.value = emptySet()
         Log.d("SwarmMesh", "SWARM INTELLIGENCE MESH: DEACTIVATED")
     }
 }
 
-data class SwarmIntel(
-    val macAddress: String,
-    val rssi: Int,
-    val deviceType: String,
-    val confidence: Int
-)
+sealed class SwarmMessage {
+    data class NodeStatus(val nodeId: String) : SwarmMessage()
+    data class ThreatIntel(
+        val macAddress: String,
+        val rssi: Int,
+        val deviceType: String,
+        val confidence: Int,
+        val sourceNode: String
+    ) : SwarmMessage()
+}

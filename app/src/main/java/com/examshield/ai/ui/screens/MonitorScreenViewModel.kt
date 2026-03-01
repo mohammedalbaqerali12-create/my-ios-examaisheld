@@ -6,6 +6,9 @@ import com.examshield.ai.domain.model.ClassificationResult
 import com.examshield.ai.domain.model.DeviceType
 import com.examshield.ai.domain.repository.DetectionService
 import com.examshield.ai.domain.ai.AdaptiveLearningEngine
+import com.examshield.ai.domain.ai.CentralNeuralLink
+import com.examshield.ai.domain.model.SupervisorFeedback
+import com.examshield.ai.data.swarm.SwarmMeshService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,15 +24,21 @@ class MonitorScreenViewModel @Inject constructor(
     private val detectionService: DetectionService,
     private val adaptiveLearningEngine: AdaptiveLearningEngine,
     val performanceAdvisor: com.examshield.ai.domain.ai.AIPerformanceAdvisor,
-    val localizationController: com.examshield.ai.session.LocalizationSessionController
+    val localizationController: com.examshield.ai.session.LocalizationSessionController,
+    private val neuralLink: CentralNeuralLink,
+    private val swarmMeshService: SwarmMeshService
 ) : ViewModel() {
 
     init {
-        // Initialize localization session with a default hall
         localizationController.selectHall(com.examshield.ai.localization.HallDefinitions.HallA)
     }
 
-    // Localization State exposure
+    val aiNeuralState = neuralLink.directives.map { it.aiNeuralState }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CentralNeuralLink.NeuralState.STABLE)
+
+    val swarmNodeCount = swarmMeshService.activeNodes.map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     val currentHall = localizationController.currentHall
     val estimatedDevicePos = localizationController.estimatedDevicePos
     val localizationConfidence = localizationController.confidence
@@ -42,7 +51,6 @@ class MonitorScreenViewModel @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
-    // Real-time azimuth and pitch for radar stabilization
     private val _azimuth = MutableStateFlow(0f)
     val azimuth: StateFlow<Float> = _azimuth.asStateFlow()
 
@@ -57,7 +65,6 @@ class MonitorScreenViewModel @Inject constructor(
         com.examshield.ai.util.VibrationHelper.vibrateShort()
     }
 
-    // MAC addresses that the user explicitly wants to hide
     private val _ignoredMacs = MutableStateFlow<Set<String>>(emptySet())
     val ignoredMacs: StateFlow<Set<String>> = _ignoredMacs.asStateFlow()
 
@@ -66,7 +73,6 @@ class MonitorScreenViewModel @Inject constructor(
         map.values.filter { it.rawObject.macAddress !in ignored }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // High-frequency stream for the Radar screen to track orientation in real-time
     private val _rawDetectionStream = MutableSharedFlow<ClassificationResult>(replay = 0, extraBufferCapacity = 64)
     val rawDetectionStream = _rawDetectionStream.asSharedFlow()
 
@@ -76,22 +82,18 @@ class MonitorScreenViewModel @Inject constructor(
         if (_isScanning.value) {
             stopScanning()
         } else {
-            // Start Foreground Service
             com.examshield.ai.service.AstraNexusService.start(com.examshield.ai.util.ContextUtils.getAppContext())
             startScanning()
         }
     }
 
     private fun startScanning() {
-        if (_isScanning.value) return // Already scanning
+        if (_isScanning.value) return
         
         _isScanning.value = true
-        _threatListMap.value = emptyMap() // clear old visual results
-        
-        // Cancel any lingering job just in case
+        _threatListMap.value = emptyMap()
         scanningJob?.cancel()
 
-        // 0. Orientation Tracker
         viewModelScope.launch {
             detectionService.observeOrientation().collect { (ang, pitchVal) ->
                 _azimuth.value = ang
@@ -102,8 +104,6 @@ class MonitorScreenViewModel @Inject constructor(
             }
         }
 
-        // --- KINETIC SAMPLING ENGINE ---
-        // Exclusively rely on phone movements & step detection instead of GPS.
         viewModelScope.launch {
             (detectionService as com.examshield.ai.data.repository.DetectionServiceImpl)
                 .observeSteps().collect { angAtStep ->
@@ -113,19 +113,12 @@ class MonitorScreenViewModel @Inject constructor(
                 }
         }
 
-        // 1. Reactive Collector from Service (Zero-Latency)
         scanningJob = viewModelScope.launch {
             com.examshield.ai.service.AstraNexusService.detectionStream.collect { result ->
-                // Emit to high-frequency stream for the SignalFinderScreen
                 _rawDetectionStream.emit(result)
-                
-                // --- HYBRID ENGINE FEED ---
                 localizationController.onScanSignal(result.rawObject.signalStrengthRssi)
 
-                // Update the main threat list map reactively
                 val currentMap = _threatListMap.value.toMutableMap()
-                
-                // Astra Nexus: Only show verified or newly discovered targets
                 if (result.isNexusVerified || result.confidenceScore > 40) {
                     currentMap[result.rawObject.macAddress] = result
                     _threatListMap.value = currentMap
@@ -143,14 +136,12 @@ class MonitorScreenViewModel @Inject constructor(
 
     fun markAsCheating(result: ClassificationResult) {
         viewModelScope.launch {
-            // CONFIRMED CHEATING: Force Level 4 and Lock
             adaptiveLearningEngine.applySupervisorLogic(result, isCheating = true, environmentId = "Astra_Nexus_Hall_01")
             
-            // Immediately update the local map with the "Confirmed" state
             val confirmedResult = result.copy(
                 riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
                 confidenceScore = 100,
-                feedback = com.examshield.ai.domain.model.SupervisorFeedback.CHEATING,
+                feedback = SupervisorFeedback.CHEATING,
                 isNexusVerified = true
             )
             val currentMap = _threatListMap.value.toMutableMap()
@@ -175,7 +166,6 @@ class MonitorScreenViewModel @Inject constructor(
 
     private fun stopScanning() {
         _isScanning.value = false
-        // Stop Foreground Service
         com.examshield.ai.service.AstraNexusService.stop(com.examshield.ai.util.ContextUtils.getAppContext())
         scanningJob?.cancel()
         scanningJob = null

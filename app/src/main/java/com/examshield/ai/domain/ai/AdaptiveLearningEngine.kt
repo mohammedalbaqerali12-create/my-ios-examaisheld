@@ -15,6 +15,7 @@ import com.examshield.ai.data.local.model.FriendlySignal
 import com.examshield.ai.data.local.model.ConfirmedCheatingSignal
 import com.examshield.ai.data.local.model.SignalDecision
 import com.examshield.ai.domain.model.SupervisorFeedback
+import com.examshield.ai.domain.model.RiskLevel
 
 class AdaptiveLearningEngine @Inject constructor(
     private val learningRepository: com.examshield.ai.domain.repository.LearningRepository,
@@ -82,7 +83,7 @@ class AdaptiveLearningEngine @Inject constructor(
         }
 
         // ASTRA NEURAL EVOLUTION: Analyze environment stability and mutate system
-        evolveSystem(signalVariance, stability)
+        evolveSystem(signalVariance, stability, cheatingRecord != null)
 
         return AnalysisContext(
             isNew = isNewDevice,
@@ -102,6 +103,11 @@ class AdaptiveLearningEngine @Inject constructor(
 
     fun getmacPenalty(mac: String): Int = selfCorrectionPenalties[mac] ?: 0
 
+    suspend fun checkForGlobalThreatUpdates() {
+        android.util.Log.d("ASTRA_NEXUS", "Initiating Global Threat Intel Synchronization...")
+        kotlinx.coroutines.delay(1000)
+    }
+
     suspend fun applySupervisorLogic(
         result: ClassificationResult,
         isCheating: Boolean,
@@ -110,6 +116,9 @@ class AdaptiveLearningEngine @Inject constructor(
         val signalHash = SignalFeatureHasher.hashSignal(result.rawObject)
         
         if (isCheating) {
+            // FORCE OVERDRIVE ON CHEATING DETECTION
+            neuralLink.setNeuralState(CentralNeuralLink.NeuralState.OVERDRIVE)
+            
             val existing = learningRepository.getCheatingSignal(signalHash)
             if (existing != null) {
                 learningRepository.addCheatingSignal(
@@ -128,16 +137,6 @@ class AdaptiveLearningEngine @Inject constructor(
                     )
                 )
             }
-            
-            learningRepository.addDecisionHistory(
-                SignalDecision(
-                    signalHash = signalHash,
-                    decision = "CHEATING",
-                    environmentId = environmentId,
-                    initialConfidence = result.confidenceScore,
-                    finalRiskLevel = 4
-                )
-            )
         } else {
             val existing = learningRepository.getFriendlySignal(signalHash)
             if (existing != null) {
@@ -156,36 +155,7 @@ class AdaptiveLearningEngine @Inject constructor(
                     )
                 )
             }
-
-            learningRepository.addDecisionHistory(
-                SignalDecision(
-                    signalHash = signalHash,
-                    decision = "FRIENDLY",
-                    environmentId = environmentId,
-                    initialConfidence = result.confidenceScore,
-                    finalRiskLevel = 1
-                )
-            )
-            
             selfCorrectionPenalties[result.rawObject.macAddress] = 50
-        }
-    }
-
-    private suspend fun matchLearnedRules(obj: DetectedObject): LearnedRule? {
-        if (learnedRulesCache == null) {
-            learnedRulesCache = learningRepository.getAllLearnedRules()
-        }
-        
-        return learnedRulesCache?.find { rule ->
-            when {
-                rule.pattern.startsWith("MAC_OUI:") -> {
-                    obj.macAddress.startsWith(rule.pattern.removePrefix("MAC_OUI:").trim())
-                }
-                rule.pattern.startsWith("NAME:") -> {
-                    obj.name?.contains(rule.pattern.removePrefix("NAME:").trim(), ignoreCase = true) == true
-                }
-                else -> false
-            }
         }
     }
 
@@ -217,60 +187,45 @@ class AdaptiveLearningEngine @Inject constructor(
         learnedRulesCache = null
     }
 
-    suspend fun checkForGlobalThreatUpdates() {
-        android.util.Log.d("ASTRA_NEXUS", "Initiating Global Threat Intel Synchronization...")
-        kotlinx.coroutines.delay(1500)
-        
-        val globalThreatSignatures = listOf(
-            LearnedRule(pattern = "NAME:vip pro", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "NAME:mic spy", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "NAME:esp32", detectedType = DeviceType.SUSPICIOUS_UNKNOWN.name, confidenceBoost = 85),
-            LearnedRule(pattern = "NAME:hc-05", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
-            LearnedRule(pattern = "NAME:hc-06", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
-            LearnedRule(pattern = "NAME:bt-serial", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
-            LearnedRule(pattern = "NAME:invisible ear", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "NAME:k-ear", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "NAME:mag-spy", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "MAC_OUI:CC50E3", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90), 
-            LearnedRule(pattern = "MAC_OUI:001B10", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
-            LearnedRule(pattern = "MAC_OUI:12:34:56", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
-            LearnedRule(pattern = "MAC_OUI:20:13:08", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 95)
-        )
-
-        var newLearned = 0
-        val existingRules = learningRepository.getAllLearnedRules().map { it.pattern }
-
-        for (signature in globalThreatSignatures) {
-            if (!existingRules.contains(signature.pattern)) {
-                learningRepository.addLearnedRule(signature)
-                newLearned++
-            }
+    private suspend fun matchLearnedRules(obj: DetectedObject): LearnedRule? {
+        if (learnedRulesCache == null) {
+            learnedRulesCache = learningRepository.getAllLearnedRules()
         }
-
-        if (newLearned > 0) {
-            learnedRulesCache = null
-            android.util.Log.e("ASTRA_NEXUS", "Evolution Complete. $newLearned Global Threat Signatures Injected. AI is armed.")
+        
+        return learnedRulesCache?.find { rule ->
+            when {
+                rule.pattern.startsWith("MAC_OUI:") -> {
+                    obj.macAddress.startsWith(rule.pattern.removePrefix("MAC_OUI:").trim())
+                }
+                rule.pattern.startsWith("NAME:") -> {
+                    obj.name?.contains(rule.pattern.removePrefix("NAME:").trim(), ignoreCase = true) == true
+                }
+                else -> false
+            }
         }
     }
 
     /**
      * Autonomous Evolution Loop: Adjusts system sensitivity based on signal environment.
      */
-    private fun evolveSystem(variance: Double, stability: Float) {
+    private fun evolveSystem(variance: Double, stability: Float, hasCheatingSignal: Boolean) {
         neuralLink.mutate { current ->
             val newState = when {
+                hasCheatingSignal -> CentralNeuralLink.NeuralState.OVERDRIVE
                 variance > 50.0 -> CentralNeuralLink.NeuralState.EVOLVING
-                stability < 0.4f -> CentralNeuralLink.NeuralState.STEALTH
-                else -> CentralNeuralLink.NeuralState.STABLE
+                stability < 0.3f -> CentralNeuralLink.NeuralState.STEALTH
+                stability > 0.9f && variance < 10.0 -> CentralNeuralLink.NeuralState.STABLE
+                else -> current.aiNeuralState
             }
 
             val targetProcessNoise = if (variance > 30.0) 0.025 else 0.012
-            val targetHapticMult = if (stability > 0.8f) 1.2f else 1.0f
+            val scanningMultiplier = if (newState == CentralNeuralLink.NeuralState.OVERDRIVE) 2.5f else 1.0f
 
             current.copy(
                 aiNeuralState = newState,
                 kalmanProcessNoise = targetProcessNoise,
-                hapticIntensityMultiplier = targetHapticMult
+                scanningSpeedMultiplier = scanningMultiplier,
+                refreshRateHz = if (newState == CentralNeuralLink.NeuralState.OVERDRIVE) 60 else 30
             )
         }
     }

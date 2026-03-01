@@ -20,6 +20,8 @@ import com.examshield.ai.domain.repository.OrbitalUplink
 import com.examshield.ai.data.scanner.OrbitalUplinkServiceImpl
 import com.examshield.ai.util.HapticSonarManager
 import com.examshield.ai.data.swarm.SwarmMeshService
+import com.examshield.ai.domain.ai.CentralNeuralLink
+import com.examshield.ai.domain.ai.AdaptiveLearningEngine
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -90,7 +92,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRoomModelingDao(database: AppDatabase): com.examshield.ai.data.local.dao.RoomModelingDao = database.roomModelingDao()
-// Riverside: Registering RoomModelingDao for persistence.
+
+    @Provides
+    @Singleton
+    fun provideCentralNeuralLink(): CentralNeuralLink = CentralNeuralLink()
+
     @Provides
     @Singleton
     fun provideLocalizationSessionController(): com.examshield.ai.session.LocalizationSessionController {
@@ -126,16 +132,17 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAdaptiveLearningEngine(
-        learningRepository: com.examshield.ai.domain.repository.LearningRepository
-    ): com.examshield.ai.domain.ai.AdaptiveLearningEngine {
-        return com.examshield.ai.domain.ai.AdaptiveLearningEngine(learningRepository)
+        learningRepository: com.examshield.ai.domain.repository.LearningRepository,
+        neuralLink: CentralNeuralLink
+    ): AdaptiveLearningEngine {
+        return AdaptiveLearningEngine(learningRepository, neuralLink)
     }
 
     @Provides
     @Singleton
     fun provideDeviceClassifier(
         useCase: EstimateDistanceUseCase,
-        adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
+        adaptiveLearningEngine: AdaptiveLearningEngine,
         aiIntelligenceService: com.examshield.ai.domain.ai.AiIntelligenceService
     ): DeviceClassifier {
         return TFLiteDeviceClassifierImpl(useCase, adaptiveLearningEngine, aiIntelligenceService)
@@ -196,8 +203,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideHapticSonarManager(@ApplicationContext context: Context): HapticSonarManager {
-        return HapticSonarManager(context)
+    fun provideHapticSonarManager(
+        @ApplicationContext context: Context,
+        neuralLink: CentralNeuralLink
+    ): HapticSonarManager {
+        return HapticSonarManager(context, neuralLink)
     }
 
     @Provides
@@ -215,11 +225,12 @@ object AppModule {
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-        classifier: DeviceClassifier,
-        adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
+        adaptiveLearningEngine: AdaptiveLearningEngine,
         orbitalUplink: OrbitalUplink,
         hapticSonarManager: HapticSonarManager,
-        swarmMeshService: SwarmMeshService
+        swarmMeshService: SwarmMeshService,
+        neuralLink: CentralNeuralLink,
+        advisor: com.examshield.ai.domain.ai.AIPerformanceAdvisor
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -228,11 +239,12 @@ object AppModule {
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
             orientationScanner = orientationScanner,
-            classifier = classifier,
+            classifier = TFLiteDeviceClassifierImpl(EstimateDistanceUseCase(), adaptiveLearningEngine, com.examshield.ai.data.remote.OpenAiIntelligenceServiceImpl()), // Simplified for DI matching
             adaptiveLearningEngine = adaptiveLearningEngine,
             orbitalUplink = orbitalUplink,
             hapticSonarManager = hapticSonarManager,
-            swarmMeshService = swarmMeshService
+            swarmMeshService = swarmMeshService,
+            neuralLink = neuralLink
         )
     }
 }

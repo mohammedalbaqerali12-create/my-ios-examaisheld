@@ -86,7 +86,7 @@ class HapticSonarManager @Inject constructor(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val amplitude = if (isCritical) 255 else (100 * aiMultiplier).toInt().coerceIn(1, 255)
                     val effect = VibrationEffect.createOneShot(if (isCritical) 50 else 20, amplitude)
-                    vibrator. v vibrate(effect)
+                    vibrator.vibrate(effect)
                 } else {
                     @Suppress("DEPRECATION")
                     vibrator.vibrate(if (isCritical) 50L else 20L)
