@@ -37,6 +37,10 @@ import com.examshield.ai.R
 import com.examshield.ai.domain.model.ClassificationResult
 import com.examshield.ai.domain.model.DistanceZone
 import com.examshield.ai.domain.model.RiskLevel
+import com.examshield.ai.ui.visualization.SpectrumWaterfallRenderer
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import androidx.core.content.FileProvider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,9 +50,13 @@ fun MonitorScreen(
 ) {
     val isScanning by viewModel.isScanning.collectAsState()
     val threatList by viewModel.threatList.collectAsState()
+    val orbitalData by viewModel.currentOrbitalData.collectAsState()
     var showAdvisor by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     var showTaskPanel by remember { mutableStateOf(false) }
+    var showRangeSelector by remember { mutableStateOf(false) }
+    val currentRange by viewModel.maxDetectionRange.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
             topBar = {
@@ -82,9 +90,25 @@ fun MonitorScreen(
                     .padding(paddingValues)
                     .padding(horizontal = 16.dp)
             ) {
-                SystemStatusPanel(isScanning, threatList.size, { showTaskPanel = true })
+                SystemStatusPanel(isScanning, threatList.size, orbitalData.satelliteCount, { showRangeSelector = true })
                 
                 Spacer(modifier = Modifier.height(24.dp))
+                
+                // ORBITAL UPLINK HUB
+                OrbitalUplinkHub(orbitalData)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (showRangeSelector) {
+                    RangeSelectorMenu(
+                        currentRange = currentRange,
+                        onRangeSelected = { 
+                            viewModel.setMaxDetectionRange(it)
+                            showRangeSelector = false
+                        },
+                        onDismiss = { showRangeSelector = false }
+                    )
+                }
 
                 if (!isScanning && threatList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -113,12 +137,32 @@ fun MonitorScreen(
                 ) {
                     if (criticalThreats.isNotEmpty()) {
                         item {
-                            Text(
-                                text = "⚠️ الأهداف الحرجة (Critical)", 
-                                color = com.examshield.ai.ui.theme.ThreatRed, 
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "⚠️ الأهداف الحرجة (Critical)", 
+                                    color = com.examshield.ai.ui.theme.ThreatRed, 
+                                    fontWeight = FontWeight.Black
+                                )
+                                Button(
+                                    onClick = { 
+                                        val file = viewModel.generateMissionReport(context)
+                                        if (file != null) {
+                                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                setDataAndType(uri, "application/pdf")
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Open Mission Report"))
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                    shape = RoundedCornerShape(4.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(28.dp)
+                                ) {
+                                    Text("توليد تقرير استخباراتي", fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                }
+                            }
                         }
                         items(criticalThreats.sortedByDescending { it.confidenceScore }) { threat ->
                              LaunchedEffect(threat.rawObject.macAddress) {
@@ -149,7 +193,7 @@ fun MonitorScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onTaskClick: () -> Unit) {
+fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, satCount: Int, onRangeClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -158,14 +202,14 @@ fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onTaskClick: () -> 
             .padding(16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            StatusIndicator("حالة المستشعرات", if (isScanning) "نشط" else "خامل", if (isScanning) Color.Green else Color.Gray)
-            StatusIndicator("إشارات مكتشفة", threatCount.toString(), if (threatCount > 0) com.examshield.ai.ui.theme.ThreatRed else Color.White)
-            StatusIndicator("نظام AI الذكي", if (isScanning) "متصل" else "بانتظار", MaterialTheme.colorScheme.primary)
+            StatusIndicator("SENSORS", if (isScanning) "ACTIVE" else "IDLE", if (isScanning) Color.Green else Color.Gray)
+            StatusIndicator("THREATS", threatCount.toString(), if (threatCount > 0) com.examshield.ai.ui.theme.ThreatRed else Color.White)
+            StatusIndicator("SAT LINK", if (satCount > 0) "LOCKED ($satCount)" else "SEARCHING", if (satCount > 0) Color.Cyan else Color.Gray)
         }
         Spacer(modifier = Modifier.height(12.dp))
         
         Button(
-            onClick = onTaskClick,
+            onClick = onRangeClick,
             modifier = Modifier.fillMaxWidth().height(36.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             shape = RoundedCornerShape(4.dp)
@@ -177,11 +221,106 @@ fun SystemStatusPanel(isScanning: Boolean, threatCount: Int, onTaskClick: () -> 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RangeSelectorMenu(currentRange: Float, onRangeSelected: (Float) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = com.examshield.ai.ui.theme.DarkMatterSurface,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Cyan.copy(alpha = 0.5f)) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                "تحديد نطاق البحث النشط",
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                letterSpacing = 1.sp
+            )
+            Text(
+                "اختر مدى الكشف المناسب للمهمة الحالية",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+            )
+
+            RangeOption(label = "Close Quarter (3m)", value = 3.0f, isSelected = currentRange == 3.0f, onClick = onRangeSelected)
+            Spacer(modifier = Modifier.height(12.dp))
+            RangeOption(label = "Standard Precision (5m)", value = 5.0f, isSelected = currentRange == 5.0f, onClick = onRangeSelected)
+            Spacer(modifier = Modifier.height(12.dp))
+            RangeOption(label = "Wide Area Scan (10m)", value = 10.0f, isSelected = currentRange == 10.0f, onClick = onRangeSelected)
+        }
+    }
+}
+
+@Composable
+fun RangeOption(label: String, value: Float, isSelected: Boolean, onClick: (Float) -> Unit) {
+    val borderColor = if (isSelected) Color.Cyan else Color.Gray.copy(alpha = 0.3f)
+    val bgColor = if (isSelected) Color.Cyan.copy(alpha = 0.1f) else Color.Transparent
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .background(bgColor, RoundedCornerShape(8.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .clickable { onClick(value) }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = if (isSelected) Color.White else Color.Gray, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+        if (isSelected) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
 @Composable
 fun StatusIndicator(label: String, value: String, valueColor: Color) {
     Column(horizontalAlignment = Alignment.Start) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp)
-        Text(value, fontWeight = FontWeight.Black, color = valueColor, fontSize = 14.sp)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+        Text(value, fontWeight = FontWeight.Black, color = valueColor, fontSize = 14.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+    }
+}
+
+@Composable
+fun OrbitalUplinkHub(data: com.examshield.ai.domain.repository.OrbitalData) {
+    val borderColor = if (data.isSecure) Color.Cyan else Color.DarkGray
+    val bgColor = if (data.isSecure) Color(0xFF0A1929) else Color(0xFF1E1E1E)
+    val statusText = if (data.isSecure) "ORBITAL UPLINK ESTABLISHED" else "ACQUIRING SATELLITE LOCK..."
+    val lockText = if (data.isSecure) "SECURE" else "VULNERABLE"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(bgColor, RoundedCornerShape(2.dp))
+            .border(1.dp, borderColor.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
+            .padding(12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(statusText, color = borderColor, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            Text("[$lockText]", color = borderColor, fontSize = 9.sp, fontWeight = FontWeight.Black, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            OrbitalInfoBlock("GPS LATITUDE", if (data.isSecure) data.latitude.toString().take(9) else "---", Color.White)
+            OrbitalInfoBlock("GPS LONGITUDE", if (data.isSecure) data.longitude.toString().take(9) else "---", Color.White)
+            OrbitalInfoBlock("SATELLITES", "${data.satelliteCount} LOCK", if (data.satelliteCount > 0) Color.Green else Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun OrbitalInfoBlock(label: String, value: String, valueColor: Color) {
+    Column {
+        Text(label, color = Color.Gray, fontSize = 8.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+        Text(value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
     }
 }
 
@@ -262,6 +401,17 @@ fun ThreatCard(threat: ClassificationResult, navController: NavController, viewM
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // STAGE 2: SPECTRUM WATERFALL UI
+            SpectrumWaterfallRenderer(
+                currentRssi = threat.rawObject.signalStrengthRssi,
+                baseColor = borderColor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

@@ -1,8 +1,5 @@
 package com.examshield.ai.domain.ai
 
-import kotlin.math.pow
-import kotlin.math.sqrt
-
 /**
  * Extended Kalman Filter (EKF) optimized for RSSI tracking.
  * This implementation adapts to device movement to reduce lag during rotation
@@ -45,33 +42,4 @@ class ExtendedKalmanFilter(
     }
 
     fun getState(): Double = x
-}
-
-/**
- * Composite Confidence Engine
- * Evaluates the reliability of a signal based on multiple factors.
- */
-object localizationConfidenceEngine {
-    fun calculateScore(
-        stability: Double, // RSSI Variance
-        motionConsistency: Double, // Orientation vs Signal change
-        temporalPersistence: Int, // How many callbacks received
-        isWithinRoom: Boolean
-    ): Int {
-        var score = 0
-        
-        // 1. Stability (up to 30 points)
-        score += (30 - (stability * 2).toInt()).coerceIn(0, 30)
-        
-        // 2. Room Alignment (up to 20 points)
-        if (isWithinRoom) score += 20
-        
-        // 3. Persistence (up to 30 points)
-        score += (temporalPersistence * 2).coerceAtMost(30)
-        
-        // 4. Motion Agreement (up to 20 points)
-        score += (motionConsistency * 20).toInt().coerceIn(0, 20)
-
-        return score
-    }
 }

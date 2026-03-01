@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import java.util.concurrent.ConcurrentHashMap
+import com.examshield.ai.domain.repository.OrbitalData
+import com.examshield.ai.report.MissionReportGenerator
+import java.io.File
 
 @HiltViewModel
 class MonitorScreenViewModel @Inject constructor(
@@ -45,6 +48,14 @@ class MonitorScreenViewModel @Inject constructor(
 
     private val _pitch = MutableStateFlow(0f)
     val pitch: StateFlow<Float> = _pitch.asStateFlow()
+
+    val currentOrbitalData: StateFlow<OrbitalData> = detectionService.currentOrbitalData
+    val maxDetectionRange: StateFlow<Float> = detectionService.maxDetectionRange
+
+    fun setMaxDetectionRange(range: Float) {
+        detectionService.setMaxDetectionRange(range)
+        com.examshield.ai.util.VibrationHelper.vibrateShort()
+    }
 
     // MAC addresses that the user explicitly wants to hide
     private val _ignoredMacs = MutableStateFlow<Set<String>>(emptySet())
@@ -155,6 +166,11 @@ class MonitorScreenViewModel @Inject constructor(
             currentMap.remove(mac)
             _threatListMap.value = currentMap
         }
+    }
+
+    fun generateMissionReport(context: android.content.Context): File? {
+        val generator = MissionReportGenerator(context)
+        return generator.generateReport(_threatListMap.value.values.toList(), currentOrbitalData.value)
     }
 
     private fun stopScanning() {

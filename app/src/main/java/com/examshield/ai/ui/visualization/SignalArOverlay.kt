@@ -21,6 +21,8 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
+import com.examshield.ai.vision.VisionTarget
+
 @Composable
 fun SignalArOverlay(
     modifier: Modifier = Modifier,
@@ -29,7 +31,8 @@ fun SignalArOverlay(
     currentAzimuth: Float, // In degrees
     currentPitch: Float, // In degrees (Vertical tilt)
     deviceType: String = "UNKNOWN",
-    rssi: Int = -100
+    rssi: Int = -100,
+    visionTargets: List<VisionTarget> = emptyList()
 ) {
     val textMeasurer = rememberTextMeasurer()
     val infiniteTransition = rememberInfiniteTransition()
@@ -43,6 +46,39 @@ fun SignalArOverlay(
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        
+        // DRAW VISION TARGETS (ML Kit Bounding Boxes)
+        // Using approximate VGA resolution mapping (480x640) for standard ImageAnalysis in Portrait.
+        val imgWidth = 480f
+        val imgHeight = 640f
+        
+        for (visionObj in visionTargets) {
+            val isPerson = visionObj.labels.any { it.contains("Fashion", ignoreCase = true) || it.contains("Person", ignoreCase = true) || it.contains("Clothing", ignoreCase = true) }
+            val boxColor = if (isPerson) Color(0xFFFF5252) else Color(0xFF00E676)
+            
+            val left = (visionObj.boundingBox.left / imgWidth) * size.width
+            val top = (visionObj.boundingBox.top / imgHeight) * size.height
+            val right = (visionObj.boundingBox.right / imgWidth) * size.width
+            val bottom = (visionObj.boundingBox.bottom / imgHeight) * size.height
+            
+            drawRect(
+                color = boxColor.copy(alpha = 0.4f),
+                topLeft = Offset(left, top),
+                size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
+                style = Stroke(width = 2.dp.toPx())
+            )
+            
+            // Draw Target ID / Label
+            val labelText = if (isPerson) "SUSPECT_MAPPED [ID:${visionObj.trackingId ?: 0}]" else "OBJ [ID:${visionObj.trackingId ?: 0}]"
+            val textResult = textMeasurer.measure(
+                text = labelText,
+                style = androidx.compose.ui.text.TextStyle(
+                    color = boxColor, fontSize = 8.sp, fontWeight = FontWeight.Black, background = Color.Black.copy(0.6f)
+                )
+            )
+            drawText(textResult, topLeft = Offset(left, top - textResult.size.height))
+        }
+
         val target = devicePos ?: return@Canvas
         
         // Calculate relative vector

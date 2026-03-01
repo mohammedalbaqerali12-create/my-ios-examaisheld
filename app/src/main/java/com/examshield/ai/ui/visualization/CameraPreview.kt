@@ -10,16 +10,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.core.ImageAnalysis
 import androidx.core.content.ContextCompat
+import java.util.concurrent.Executors
+import com.examshield.ai.vision.TargetLockVisionAnalyzer
+import com.examshield.ai.vision.VisionTarget
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun CameraPreview(
     modifier: Modifier = Modifier,
-    cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA,
+    analyzer: TargetLockVisionAnalyzer? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
     AndroidView(
         factory = { ctx ->
@@ -31,12 +38,22 @@ fun CameraPreview(
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
 
+                    val useCases = mutableListOf<androidx.camera.core.UseCase>(preview)
+                    
+                    if (analyzer != null) {
+                        val imageAnalysis = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                        imageAnalysis.setAnalyzer(cameraExecutor, analyzer)
+                        useCases.add(imageAnalysis)
+                    }
+
                 try {
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
-                        preview
+                        *useCases.toTypedArray()
                     )
                 } catch (e: Exception) {
                     e.printStackTrace()

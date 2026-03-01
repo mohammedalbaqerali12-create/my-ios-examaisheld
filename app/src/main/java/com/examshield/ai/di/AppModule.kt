@@ -18,6 +18,8 @@ import com.examshield.ai.domain.repository.Scanner
 import com.examshield.ai.domain.usecase.EstimateDistanceUseCase
 import com.examshield.ai.domain.repository.OrbitalUplink
 import com.examshield.ai.data.scanner.OrbitalUplinkServiceImpl
+import com.examshield.ai.util.HapticSonarManager
+import com.examshield.ai.data.swarm.SwarmMeshService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -194,6 +196,18 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideHapticSonarManager(@ApplicationContext context: Context): HapticSonarManager {
+        return HapticSonarManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSwarmMeshService(@ApplicationContext context: Context): SwarmMeshService {
+        return SwarmMeshService(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideDetectionService(
         @BluetoothLeScanner bleScanner: Scanner,
         @ClassicBluetoothScanner classicBluetoothScanner: Scanner,
@@ -203,7 +217,9 @@ object AppModule {
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
         classifier: DeviceClassifier,
         adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
-        orbitalUplink: OrbitalUplink
+        orbitalUplink: OrbitalUplink,
+        hapticSonarManager: HapticSonarManager,
+        swarmMeshService: SwarmMeshService
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -214,7 +230,9 @@ object AppModule {
             orientationScanner = orientationScanner,
             classifier = classifier,
             adaptiveLearningEngine = adaptiveLearningEngine,
-            orbitalUplink = orbitalUplink
+            orbitalUplink = orbitalUplink,
+            hapticSonarManager = hapticSonarManager,
+            swarmMeshService = swarmMeshService
         )
     }
 }

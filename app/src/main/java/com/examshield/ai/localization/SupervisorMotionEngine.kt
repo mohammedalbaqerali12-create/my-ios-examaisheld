@@ -32,10 +32,7 @@ class SupervisorMotionEngine {
         val dx = (stepLength * cos(mathHeadingRad)).toFloat()
         val dy = (stepLength * sin(mathHeadingRad)).toFloat()
 
-        val nextX = (current.x + dx).coerceIn(0f, hall.width)
-        val nextY = (current.y + dy).coerceIn(0f, hall.height)
-
-        _currentPosition.value = Vector2D(nextX, nextY)
+        _currentPosition.value = Vector2D(current.x + dx, current.y + dy)
     }
 
     fun resetPosition(x: Float = 0f, y: Float = 0f) {

@@ -62,6 +62,21 @@
             android:foregroundServiceType="location|connectedDevice|dataSync"
             tools:targetApi="34" />
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSy_EXAMSHIELD_PLACEHOLDER_KEY_HERE" />
+
     </application>
 
 </manifest>

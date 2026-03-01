@@ -17,28 +17,19 @@ import com.examshield.ai.data.local.model.SignalDecision
 import com.examshield.ai.domain.model.SupervisorFeedback
 
 class AdaptiveLearningEngine @Inject constructor(
-    private val learningRepository: com.examshield.ai.domain.repository.LearningRepository
+    private val learningRepository: com.examshield.ai.domain.repository.LearningRepository,
+    private val neuralLink: CentralNeuralLink
 ) {
     private val denoisingEngine = SignalDenoisingEngine()
 
-    // Self-Correction Loop: MAC Address -> Penalty Score
     private val selfCorrectionPenalties = ConcurrentHashMap<String, Int>()
-
-    // How far back to look for recent activity
     private val RECENCY_THRESHOLD_MS = TimeUnit.MINUTES.toMillis(5)
-
-    // Cache learned rules in memory for high-speed matching
     private var learnedRulesCache: List<LearnedRule>? = null
 
-    /**
-     * Analyzes a detected object, updates the baseline, and returns context about it.
-     */
     suspend fun analyze(detectedObject: DetectedObject): AnalysisContext {
-        // 0. SIGNAL DENOISING (Surgical Clean)
         val cleanRssi = denoisingEngine.denoise(detectedObject.macAddress, detectedObject.signalStrengthRssi)
         val stability = denoisingEngine.getStabilityScore(detectedObject.macAddress)
 
-        // Record the raw scan
         learningRepository.addScan(
             Scan(
                 macAddress = detectedObject.macAddress,
@@ -50,7 +41,6 @@ class AdaptiveLearningEngine @Inject constructor(
 
         val existingBaseline = learningRepository.getBaseline(detectedObject.macAddress)
         val isNewDevice = existingBaseline == null
-
         val newObservationCount = (existingBaseline?.observationCount ?: 0) + 1
 
         val baseline = existingBaseline?.apply {
@@ -71,7 +61,6 @@ class AdaptiveLearningEngine @Inject constructor(
             System.currentTimeMillis() - RECENCY_THRESHOLD_MS
         )
 
-        // Self-Learning: Calculate consistency of signal
         val signalVariance = if (recentScans.size > 2) {
             val rssis = recentScans.map { it.signalStrength }
             val avg = rssis.map { it.toDouble() }.sum() / rssis.size
@@ -80,13 +69,9 @@ class AdaptiveLearningEngine @Inject constructor(
             sumSq / rssis.size
         } else 100.0
 
-        // Practice/Learning: Devices that appear in short predictable bursts are more likely to be cheating gear
         val isConsistentStream = recentScans.size > 5 && signalVariance < 15.0
-
-        // ASTRA V11: Match against learned patterns (Offline Intel)
         val learnedMatch = matchLearnedRules(detectedObject)
 
-        // ASTRA NEXUS: SUPERVISOR FEEDBACK LOOP
         val signalHash = SignalFeatureHasher.hashSignal(detectedObject)
         val friendlyRecord = learningRepository.getFriendlySignal(signalHash)
         val cheatingRecord = learningRepository.getCheatingSignal(signalHash)
@@ -95,6 +80,9 @@ class AdaptiveLearningEngine @Inject constructor(
         if (cheatingRecord != null) {
             feedbackRiskElevation = 40 + (cheatingRecord.hitCount * 5)
         }
+
+        // ASTRA NEURAL EVOLUTION: Analyze environment stability and mutate system
+        evolveSystem(signalVariance, stability)
 
         return AnalysisContext(
             isNew = isNewDevice,
@@ -151,7 +139,6 @@ class AdaptiveLearningEngine @Inject constructor(
                 )
             )
         } else {
-            // Friendly logic
             val existing = learningRepository.getFriendlySignal(signalHash)
             if (existing != null) {
                 learningRepository.addFriendlySignal(
@@ -180,7 +167,6 @@ class AdaptiveLearningEngine @Inject constructor(
                 )
             )
             
-            // Learn from mistake: Apply a permanent penalty for this signature
             selfCorrectionPenalties[result.rawObject.macAddress] = 50
         }
     }
@@ -204,11 +190,9 @@ class AdaptiveLearningEngine @Inject constructor(
     }
 
     suspend fun learnFromNexus(result: ClassificationResult) {
-        // Extract pattern: If it's a verified threat, learn its OUI or Name
         val name = result.rawObject.name
         val mac = result.rawObject.macAddress
         
-        // 1. Learn OUI (Top 3 bytes)
         if (mac.length >= 8) {
             val oui = mac.take(8)
             learningRepository.addLearnedRule(
@@ -220,7 +204,6 @@ class AdaptiveLearningEngine @Inject constructor(
             )
         }
         
-        // 2. Learn Name if specific enough
         if (!name.isNullOrBlank() && name.length > 5 && !name.contains("PHONE", true)) {
             learningRepository.addLearnedRule(
                 LearnedRule(
@@ -231,28 +214,27 @@ class AdaptiveLearningEngine @Inject constructor(
             )
         }
         
-        // Invalidate cache
         learnedRulesCache = null
     }
 
     suspend fun checkForGlobalThreatUpdates() {
         android.util.Log.d("ASTRA_NEXUS", "Initiating Global Threat Intel Synchronization...")
-        
-        // Simulated network delay (e.g., reaching out to an AWS/GitHub endpoint for the latest AI intel)
         kotlinx.coroutines.delay(1500)
         
-        // This simulates a JSON payload downloaded from the cloud of known cheating signatures
-        // Gives Astra Nexus complete independent intelligence globally
         val globalThreatSignatures = listOf(
             LearnedRule(pattern = "NAME:vip pro", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
             LearnedRule(pattern = "NAME:mic spy", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            LearnedRule(pattern = "NAME:esp32", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "NAME:esp32", detectedType = DeviceType.SUSPICIOUS_UNKNOWN.name, confidenceBoost = 85),
             LearnedRule(pattern = "NAME:hc-05", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "NAME:hc-06", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
             LearnedRule(pattern = "NAME:bt-serial", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
             LearnedRule(pattern = "NAME:invisible ear", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
-            // Generic Chinese White-label Cheating Module MAC OUIs
+            LearnedRule(pattern = "NAME:k-ear", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
+            LearnedRule(pattern = "NAME:mag-spy", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
             LearnedRule(pattern = "MAC_OUI:CC50E3", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90), 
-            LearnedRule(pattern = "MAC_OUI:001B10", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90)
+            LearnedRule(pattern = "MAC_OUI:001B10", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "MAC_OUI:12:34:56", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "MAC_OUI:20:13:08", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 95)
         )
 
         var newLearned = 0
@@ -266,10 +248,30 @@ class AdaptiveLearningEngine @Inject constructor(
         }
 
         if (newLearned > 0) {
-            learnedRulesCache = null // Invalidate cache so it forces a reload
+            learnedRulesCache = null
             android.util.Log.e("ASTRA_NEXUS", "Evolution Complete. $newLearned Global Threat Signatures Injected. AI is armed.")
-        } else {
-            android.util.Log.d("ASTRA_NEXUS", "Intel up-to-date. No new signatures needed.")
+        }
+    }
+
+    /**
+     * Autonomous Evolution Loop: Adjusts system sensitivity based on signal environment.
+     */
+    private fun evolveSystem(variance: Double, stability: Float) {
+        neuralLink.mutate { current ->
+            val newState = when {
+                variance > 50.0 -> CentralNeuralLink.NeuralState.EVOLVING
+                stability < 0.4f -> CentralNeuralLink.NeuralState.STEALTH
+                else -> CentralNeuralLink.NeuralState.STABLE
+            }
+
+            val targetProcessNoise = if (variance > 30.0) 0.025 else 0.012
+            val targetHapticMult = if (stability > 0.8f) 1.2f else 1.0f
+
+            current.copy(
+                aiNeuralState = newState,
+                kalmanProcessNoise = targetProcessNoise,
+                hapticIntensityMultiplier = targetHapticMult
+            )
         }
     }
 }

@@ -16,11 +16,17 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+import com.examshield.ai.util.HapticSonarManager
+import com.examshield.ai.data.swarm.SwarmMeshService
+import com.examshield.ai.data.swarm.SwarmIntel
+import com.examshield.ai.domain.ai.CentralNeuralLink
+import com.examshield.ai.domain.ai.SensorFusionEngine
+import com.examshield.ai.domain.ai.AdaptiveLearningEngine
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DetectionServiceImpl(
@@ -31,28 +37,34 @@ class DetectionServiceImpl(
     private val magneticFieldScanner: Scanner,
     private val orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
     private val classifier: DeviceClassifier,
-    private val adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
-    private val orbitalUplink: OrbitalUplink
+    private val adaptiveLearningEngine: AdaptiveLearningEngine,
+    private val orbitalUplink: OrbitalUplink,
+    private val hapticSonarManager: HapticSonarManager,
+    private val swarmMeshService: SwarmMeshService,
+    private val neuralLink: CentralNeuralLink
 ) : DetectionService {
 
-    // ASTRA NEXUS: HIGH-PRECISION TRACKING ENGINE
-    private val ekfFilters = ConcurrentHashMap<String, com.examshield.ai.domain.ai.ExtendedKalmanFilter>()
-    private val rssiHistory = ConcurrentHashMap<String, MutableList<Int>>()
-    private val MAX_HISTORY_SIZE = 15
+    private val sensorFusionEngine = SensorFusionEngine(neuralLink)
     private val callbackCounts = ConcurrentHashMap<String, Int>()
-
+    private val swarmIdentities = ConcurrentHashMap<String, SwarmIntel>()
     private val lastLogTime = ConcurrentHashMap<String, Long>()
-
     private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 
-    val currentOrbitalData: StateFlow<OrbitalData>
+    override val currentOrbitalData: StateFlow<OrbitalData>
         get() = _currentOrbitalData.asStateFlow()
     private val _currentOrbitalData = MutableStateFlow(OrbitalData())
+
+    override val maxDetectionRange: StateFlow<Float>
+        get() = _maxDetectionRange.asStateFlow()
+    private val _maxDetectionRange = MutableStateFlow(5.0f)
+
+    override fun setMaxDetectionRange(range: Float) {
+        _maxDetectionRange.value = range
+    }
 
     override fun observeThreats(): Flow<ClassificationResult> {
         var lastMagneticAnomalyTime = 0L
         
-        // Trigger Global Intel Sync asynchronously
         scope.launch {
             try {
                 adaptiveLearningEngine.checkForGlobalThreatUpdates()
@@ -61,10 +73,16 @@ class DetectionServiceImpl(
             }
         }
 
-        // Trigger Orbital Satellite Streaming
         scope.launch {
             orbitalUplink.streamOrbitalData().collect { data ->
                 _currentOrbitalData.value = data
+            }
+        }
+
+        swarmMeshService.startSwarm()
+        scope.launch {
+            swarmMeshService.swarmIntelStream.collect { intel ->
+                swarmIdentities[intel.macAddress] = intel
             }
         }
 
@@ -79,70 +97,54 @@ class DetectionServiceImpl(
         return mergedScanners
             .buffer(capacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
             .mapNotNull { detectedObj ->
-                // Memory Management
                 if (Math.random() < 0.001) {
-                    if (ekfFilters.size > 200) {
-                        ekfFilters.clear()
-                        rssiHistory.clear()
-                    }
+                    sensorFusionEngine.purgeAll()
                 }
 
-                // MAG ISOLATION: Trap raw magnetic anomalies here. They supercharge the next RF read.
                 if (detectedObj.macAddress == "MAGNETIC_FIELD_ANOMALY") {
                     lastMagneticAnomalyTime = System.currentTimeMillis()
-                    return@mapNotNull null // DO NOT emit the raw magnetic anomaly to the UI
+                    return@mapNotNull null
                 }
 
-                // ASTRA NEXUS: SURGICAL SIGNAL SMOOTHING
-                val smoothedRssi = getSmoothedRssi(detectedObj.macAddress, detectedObj.signalStrengthRssi)
+                val smoothedRssi = sensorFusionEngine.process(
+                    detectedObj.macAddress, 
+                    detectedObj.signalStrengthRssi,
+                    motionIntensity = (abs(orientationScanner.currentAzimuth - lastAzimuth) / 45.0).coerceIn(0.0, 1.0)
+                )
+                lastAzimuth = orientationScanner.currentAzimuth
                 
-                // Real-time Logging (Throttled per MAC)
                 val now = System.currentTimeMillis()
                 val lastLog = lastLogTime[detectedObj.macAddress] ?: 0L
                 if (now - lastLog > 500) {
-                    android.util.Log.d("ASTRA_NEXUS", "MAC: ${detectedObj.macAddress} | RSSI: ${detectedObj.signalStrengthRssi} | SMOOTHED: $smoothedRssi")
+                    android.util.Log.d("ASTRA_NEXUS", "MAC: ${detectedObj.macAddress} | RSSI: ${detectedObj.signalStrengthRssi} | FUSED: $smoothedRssi")
                     lastLogTime[detectedObj.macAddress] = now
                 }
 
                 val optimizedObj = detectedObj.copy(signalStrengthRssi = smoothedRssi)
                 val baseClassification = classifier.classify(optimizedObj)
                 
-                // SENSOR FUSION & PRECISION MODE (Magnetic Binding)
                 val timeSinceMagnet = now - lastMagneticAnomalyTime
                 val isNearRF = baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE || 
                              baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR
                 
                 var finalResult = baseClassification
-                // If the device is close (RF) AND we saw a magnetic spike recently (within 4 seconds)
                 if (timeSinceMagnet < 4000 && isNearRF) {
                     finalResult = baseClassification.copy(
                         riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
-                        confidenceScore = 100, // Instant 100% confidence lockdown
+                        confidenceScore = 100,
                         discoveryReason = "${baseClassification.discoveryReason} [MAG_FUSION_VERIFIED]".trim()
                     )
                 }
 
-                // Hardware Intensity Orchestration
-                if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE) {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.ULTRA_FAST)
-                    if (finalResult.confidenceScore < 100) { // Don't append if MAG_FUSION is there already
-                         finalResult = finalResult.copy(
-                             discoveryReason = "${finalResult.discoveryReason} [PRECISION_LOCK]".trim()
-                         )
-                    }
-                } else if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR) {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.HIGH_PRECISION)
-                } else {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.BALANCED)
-                }
+                updateIntensityBasedOnDistance(finalResult.distanceZone)
 
-                // COMPOSITE CONFIDENCE SCORING
-                val stability = calculateStability(rssiHistory[detectedObj.macAddress] ?: emptyList())
+                val stability = sensorFusionEngine.getSignalIntegrity(detectedObj.macAddress)
                 val callbacks = callbackCounts.getOrDefault(detectedObj.macAddress, 0)
+                callbackCounts[detectedObj.macAddress] = callbacks + 1
                 
                 val tempConfidenceBase = if (baseClassification.confidenceScore > 0) baseClassification.confidenceScore else 50
                 var confidenceMod = 0
-                if (stability < 3.0) confidenceMod += 15
+                if (stability > 0.8) confidenceMod += 15
                 if (finalResult.estimatedDistanceMeters < 3.0) confidenceMod += 10
                 if (callbacks > 5) confidenceMod += 5
                 
@@ -150,16 +152,32 @@ class DetectionServiceImpl(
 
                 finalResult = finalResult.copy(
                     confidenceScore = confidence,
-                    discoveryReason = "${finalResult.discoveryReason} [EKF]${if (_currentOrbitalData.value.isSecure && confidence == 100) " [ORBIT: ${_currentOrbitalData.value.latitude.toString().take(6)}, ${_currentOrbitalData.value.longitude.toString().take(6)}]" else ""}".trim()
+                    discoveryReason = "${finalResult.discoveryReason} [FUSION]${if (_currentOrbitalData.value.isSecure && confidence == 100) " [ORBIT: ${_currentOrbitalData.value.latitude.toString().take(6)}, ${_currentOrbitalData.value.longitude.toString().take(6)}]" else ""}".trim()
                 )
 
-                // Hardware Intensity Orchestration based on confidence
-                if (finalResult.confidenceScore > 80 && finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE) {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.ULTRA_FAST)
-                } else if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR) {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.HIGH_PRECISION)
-                } else {
-                    updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.BALANCED)
+                if (confidence >= 50 || finalResult.isNexusVerified) {
+                    hapticSonarManager.updateSonarTarget(finalResult.distanceZone, confidence, finalResult.isNexusVerified)
+                }
+
+                if (finalResult.riskLevel == com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT) {
+                    swarmMeshService.broadcastThreat(finalResult)
+                }
+
+                val allyIntel = swarmIdentities[detectedObj.macAddress]
+                if (allyIntel != null && allyIntel.confidence >= 80) {
+                     finalResult = finalResult.copy(
+                         confidenceScore = Math.max(finalResult.confidenceScore, allyIntel.confidence),
+                         riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
+                         discoveryReason = "${finalResult.discoveryReason} [SWARM_MESH_CONFIRMED]".trim()
+                     )
+                     swarmIdentities.remove(detectedObj.macAddress)
+                }
+
+                val directives = neuralLink.directives.value
+                val rangeLimit = if (directives.stealthPeekEnabled) _maxDetectionRange.value + 2.0f else _maxDetectionRange.value
+
+                if (finalResult.estimatedDistanceMeters > rangeLimit) {
+                    return@mapNotNull null
                 }
 
                 finalResult
@@ -177,57 +195,13 @@ class DetectionServiceImpl(
 
     private var lastAzimuth = 0f
 
-    private fun getSmoothedRssi(macAddress: String, currentRssi: Int): Int {
-        // Increment callback for persistence tracking
-        callbackCounts[macAddress] = (callbackCounts[macAddress] ?: 0) + 1
-
-        val deltaAzimuth = Math.abs(orientationScanner.currentAzimuth - lastAzimuth).toDouble()
-        lastAzimuth = orientationScanner.currentAzimuth
-        
-        // EKF Update: Intensity proportional to change in orientation velocity
-        val filter = ekfFilters.getOrPut(macAddress) { 
-            com.examshield.ai.domain.ai.ExtendedKalmanFilter(initialValue = currentRssi.toDouble()) 
+    private fun updateIntensityBasedOnDistance(zone: com.examshield.ai.domain.model.DistanceZone) {
+        val intensity = when (zone) {
+            com.examshield.ai.domain.model.DistanceZone.IMMEDIATE -> com.examshield.ai.domain.repository.ScanIntensity.ULTRA_FAST
+            com.examshield.ai.domain.model.DistanceZone.NEAR -> com.examshield.ai.domain.repository.ScanIntensity.HIGH_PRECISION
+            else -> com.examshield.ai.domain.repository.ScanIntensity.BALANCED
         }
-        
-        // OUTLIER REJECTION: If RSSI jumps more than 8dBm instantly, dampen the input
-        val history = rssiHistory.getOrPut(macAddress) { mutableListOf() }
-        var inputRssi = currentRssi.toDouble()
-        if (history.size > 3) {
-            val lastAvg = history.takeLast(3).map { it.toDouble() }.average()
-            if (Math.abs(inputRssi - lastAvg) > 8.0) {
-                inputRssi = lastAvg * 0.7 + inputRssi * 0.3 // Dampened spike
-                android.util.Log.d("ASTRA_NEXUS", "Outlier Rejected for $macAddress: Delta=${Math.abs(currentRssi - lastAvg)}")
-            }
-        }
-
-        val smoothed = filter.update(inputRssi, (deltaAzimuth / 45.0).coerceIn(0.0, 1.0)).toInt()
-        
-        // ADAPTIVE WINDOW MOVING AVERAGE
-        // Window size changes based on motion. 
-        // More motion = smaller window (less lag). Stable = larger window (less noise).
-        val windowSize = if (deltaAzimuth > 10.0) 5 else 12
-        
-        synchronized(history) {
-            history.add(currentRssi)
-            while (history.size > windowSize) {
-                history.removeAt(0)
-            }
-        }
-        
-        val alpha = if (deltaAzimuth > 10.0) 0.8 else 0.4
-        val mean = history.map { it.toDouble() }.average()
-        
-        return (smoothed * alpha + mean * (1.0 - alpha)).toInt()
-    }
-
-    private fun calculateStability(history: List<Int>): Double {
-        if (history.size < 2) return 5.0
-        val avg = history.map { it.toDouble() }.sum() / history.size
-        var sumSq = 0.0
-        for (item in history) {
-            sumSq += Math.pow(item.toDouble() - avg, 2.0)
-        }
-        return kotlin.math.sqrt(sumSq / history.size)
+        updateAllScannersIntensity(intensity)
     }
 
     private fun updateAllScannersIntensity(intensity: com.examshield.ai.domain.repository.ScanIntensity) {
@@ -252,6 +226,8 @@ class DetectionServiceImpl(
         wifiScanner.stopScanning()
         wifiDirectScanner.stopScanning()
         magneticFieldScanner.stopScanning()
-        rssiHistory.clear()
+        hapticSonarManager.stopSonar()
+        swarmMeshService.stopSwarm()
     }
 }
+ Riverside
