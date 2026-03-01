@@ -19,11 +19,14 @@ class OrientationScannerImpl @Inject constructor(
     
     @Volatile
     var currentAzimuth: Float = 0f
+    
+    @Volatile
+    var currentPitch: Float = 0f
 
     /**
-     * Continuous stream of compass heading (degrees).
+     * Continuous stream of compass heading (degrees) and pitch (degrees).
      */
-    fun observeOrientation(): Flow<Float> = callbackFlow {
+    fun observeOrientation(): Flow<Pair<Float, Float>> = callbackFlow {
         val rotationMatrix = FloatArray(9)
         val orientationAngles = FloatArray(3)
         val lastAccelerometer = FloatArray(3)
@@ -42,11 +45,30 @@ class OrientationScannerImpl @Inject constructor(
                 }
 
                 if (lastAccelerometerSet && lastMagnetometerSet) {
-                    SensorManager.getRotationMatrix(rotationMatrix, null, lastAccelerometer, lastMagnetometer)
-                    SensorManager.getOrientation(rotationMatrix, orientationAngles)
-                    val degrees = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
-                    currentAzimuth = degrees
-                    trySend(degrees)
+                    val r = FloatArray(9)
+                    val outR = FloatArray(9)
+                    if (SensorManager.getRotationMatrix(r, null, lastAccelerometer, lastMagnetometer)) {
+                        // Remap coordinate system for Portrait/Vertical AR usage
+                        // World X -> Device X, World Y -> Device Z (Forward)
+                        SensorManager.remapCoordinateSystem(
+                            r,
+                            SensorManager.AXIS_X,
+                            SensorManager.AXIS_Z,
+                            outR
+                        )
+                        SensorManager.getOrientation(outR, orientationAngles)
+                        
+                        // Azimuth is orientationAngles[0]
+                        var azimuthDegrees = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
+                        if (azimuthDegrees < 0) azimuthDegrees += 360f
+                        
+                        // Pitch is orientationAngles[1]
+                        val pitchDegrees = Math.toDegrees(orientationAngles[1].toDouble()).toFloat()
+                        
+                        currentAzimuth = azimuthDegrees
+                        currentPitch = pitchDegrees
+                        trySend(Pair(azimuthDegrees, pitchDegrees))
+                    }
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

@@ -16,6 +16,14 @@ class LocalizationSessionController @Inject constructor() {
     val envModel = EnvironmentAdaptiveModel()
     val stateMachine = LocalizationStateMachine()
 
+    // Kalman Filter for target position stabilization
+    private var kalmanX = 0f
+    private var kalmanY = 0f
+    private var kalmanP = 10f // Error covariance
+    private val kalmanQ = 0.05f // Process noise (lower = smoother)
+    private val kalmanR = 2.0f // Measurement noise (higher = more доверие to past)
+    private var isKalmanInitialized = false
+
     private val _currentHall = MutableStateFlow(HallDefinitions.HallA)
     val currentHall = _currentHall.asStateFlow()
 
@@ -25,22 +33,15 @@ class LocalizationSessionController @Inject constructor() {
     private val _confidence = MutableStateFlow(0)
     val confidence = _confidence.asStateFlow()
 
+    private val _pitch = MutableStateFlow(0f)
+    val pitch = _pitch.asStateFlow()
+
     private val _errorRadius = MutableStateFlow(0f)
     val errorRadius = _errorRadius.asStateFlow()
 
     // Persistent Target Points (Identified Devices)
     private val _targetPoints = MutableStateFlow<List<Vector2D>>(emptyList())
     val targetPoints = _targetPoints.asStateFlow()
-
-    private val _currentGpsLoc = MutableStateFlow<Pair<Double, Double>?>(null)
-    val currentGpsLoc = _currentGpsLoc.asStateFlow()
-
-    private val _targetGps = MutableStateFlow<Pair<Double, Double>?>(null)
-    val targetGps = _targetGps.asStateFlow()
-
-    private var refLat: Double? = null
-    private var refLon: Double? = null
-    private val METERS_PER_LAT = 111320.0
     
     private var lastVibrateTime = 0L
 
@@ -55,52 +56,18 @@ class LocalizationSessionController @Inject constructor() {
         motionEngine.resetPosition(0f, 0f)
         trilatEngine.clear()
         _estimatedDevicePos.value = null
+        isKalmanInitialized = false
         _confidence.value = 0
         lastSamplePos = null
         _targetPoints.value = emptyList()
-        refLat = null
-        refLon = null
-        _currentGpsLoc.value = null
     }
 
     /**
-     * Called on GPS update. Maps Lat/Long to X/Y relative to start.
+     * Called on EVERY orientation update (Heading and Pitch).
      */
-    fun onLocationUpdate(lat: Double, lon: Double) {
-        _currentGpsLoc.value = Pair(lat, lon)
-        
-        if (refLat == null) {
-            refLat = lat
-            refLon = lon
-        }
-
-        // Convert GPS to Meters relative to reference point
-        val dx = (lon - refLon!!) * METERS_PER_LAT * Math.cos(Math.toRadians(lat))
-        val dy = (lat - refLat!!) * METERS_PER_LAT
-        
-        // We can optionally update motionEngine with this absolute fix or just use it for auto-sampling
-        // FOR NOW: Treat GPS as the trigger for "Record Sample" when walking
-        
-        val currentRssi = if (rssiBuffer.isNotEmpty()) rssiBuffer.last() else -90
-        
-        if (stateMachine.state.value == LocalizationState.WALK_SAMPLING_MODE) {
-             val currentPos = motionEngine.currentPosition.value
-             val distSinceLast = lastSamplePos?.let { 
-                 Math.sqrt(Math.pow((currentPos.x - it.x).toDouble(), 2.0) + Math.pow((currentPos.y - it.y).toDouble(), 2.0))
-             } ?: Double.MAX_VALUE
-             
-             if (distSinceLast > 1.0) {
-                 recordSample(currentRssi)
-                 lastSamplePos = currentPos
-             }
-        }
-    }
-
-    /**
-     * Called on EVERY orientation update (Heading).
-     */
-    fun onHeadingUpdate(heading: Float) {
+    fun onHeadingUpdate(heading: Float, newPitch: Float = 0f) {
         lastHeading = heading
+        _pitch.value = newPitch
         if (stateMachine.state.value != LocalizationState.WALK_SAMPLING_MODE) {
             stateMachine.transition(LocalizationState.TRACKING_MOTION)
         }
@@ -218,14 +185,29 @@ class LocalizationSessionController @Inject constructor() {
             isWalkMode
         )
 
-        _estimatedDevicePos.value = finalPos
-        
-        // COMPUTE TARGET GPS
-        if (finalPos != null && refLat != null && refLon != null) {
-            val targetLat = refLat!! + (finalPos.y / METERS_PER_LAT)
-            val targetLon = refLon!! + (finalPos.x / (METERS_PER_LAT * Math.cos(Math.toRadians(refLat!!))))
-            _targetGps.value = Pair(targetLat, targetLon)
+        // KALMAN FILTER STABILIZATION
+        if (finalPos != null) {
+            if (!isKalmanInitialized) {
+                kalmanX = finalPos.x
+                kalmanY = finalPos.y
+                isKalmanInitialized = true
+            } else {
+                // Prediction step
+                kalmanP += kalmanQ
+                
+                // Measurement update (Kalman Gain)
+                val kGain = kalmanP / (kalmanP + kalmanR)
+                kalmanX += kGain * (finalPos.x - kalmanX)
+                kalmanY += kGain * (finalPos.y - kalmanY)
+                kalmanP *= (1 - kGain)
+            }
+            _estimatedDevicePos.value = Vector2D(kalmanX, kalmanY)
+        } else {
+            _estimatedDevicePos.value = null
+            isKalmanInitialized = false
         }
+        
+        // COMPUTE TARGET GPS - REMOVED
 
         // CONFIDENCE EVOLUTION
         val sampleCount = trilatEngine.getSamples().size

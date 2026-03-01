@@ -155,6 +155,13 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         }
         
         confidence += selfLearningBoost
+        
+        // --- ASTRA NEXUS PRO: SELF-CORRECTION & STABILITY ---
+        val penalty = adaptiveLearningEngine.getmacPenalty(detectedObject.macAddress)
+        confidence -= penalty
+        
+        val stabilityBoost = (context.stability * 20).toInt()
+        confidence += stabilityBoost
 
         val riskLevel = determineRiskLevel(type, zone, confidence + selfLearningBoost, context)
         

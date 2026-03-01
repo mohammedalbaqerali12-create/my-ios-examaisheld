@@ -23,7 +23,6 @@ class DetectionServiceImpl(
     private val wifiDirectScanner: Scanner,
     private val magneticFieldScanner: Scanner,
     private val orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-    private val locationScanner: com.examshield.ai.data.scanner.LocationScannerImpl,
     private val classifier: DeviceClassifier
 ) : DetectionService {
 
@@ -205,12 +204,8 @@ class DetectionServiceImpl(
         magneticFieldScanner.updateScanIntensity(intensity)
     }
 
-    override fun observeOrientation(): Flow<Float> {
+    override fun observeOrientation(): Flow<Pair<Float, Float>> {
         return orientationScanner.observeOrientation()
-    }
-
-    override fun observeLocation(): Flow<android.location.Location> {
-        return locationScanner.observeLocation()
     }
 
     fun observeSteps(): Flow<Float> {

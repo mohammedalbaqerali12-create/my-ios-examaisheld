@@ -39,9 +39,12 @@ class MonitorScreenViewModel @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
-    // Real-time azimuth for radar stabilization
+    // Real-time azimuth and pitch for radar stabilization
     private val _azimuth = MutableStateFlow(0f)
     val azimuth: StateFlow<Float> = _azimuth.asStateFlow()
+
+    private val _pitch = MutableStateFlow(0f)
+    val pitch: StateFlow<Float> = _pitch.asStateFlow()
 
     // MAC addresses that the user explicitly wants to hide
     private val _ignoredMacs = MutableStateFlow<Set<String>>(emptySet())
@@ -79,15 +82,17 @@ class MonitorScreenViewModel @Inject constructor(
 
         // 0. Orientation Tracker
         viewModelScope.launch {
-            detectionService.observeOrientation().collect { ang ->
+            detectionService.observeOrientation().collect { (ang, pitchVal) ->
                 _azimuth.value = ang
+                _pitch.value = pitchVal
                 if (_isScanning.value) {
-                    localizationController.onHeadingUpdate(ang)
+                    localizationController.onHeadingUpdate(ang, pitchVal)
                 }
             }
         }
 
-        // --- NEW: Physical Step Trigger ---
+        // --- KINETIC SAMPLING ENGINE ---
+        // Exclusively rely on phone movements & step detection instead of GPS.
         viewModelScope.launch {
             (detectionService as com.examshield.ai.data.repository.DetectionServiceImpl)
                 .observeSteps().collect { angAtStep ->
@@ -95,15 +100,6 @@ class MonitorScreenViewModel @Inject constructor(
                          localizationController.onStepDetected(angAtStep)
                     }
                 }
-        }
-
-        // --- NEW: GPS Trigger ---
-        viewModelScope.launch {
-            detectionService.observeLocation().collect { location ->
-                if (_isScanning.value) {
-                    localizationController.onLocationUpdate(location.latitude, location.longitude)
-                }
-            }
         }
 
         // 1. Reactive Collector from Service (Zero-Latency)

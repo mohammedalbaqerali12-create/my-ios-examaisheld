@@ -6,6 +6,7 @@ import com.examshield.ai.domain.model.DetectedObject
 import com.examshield.ai.domain.repository.LearningRepository
 import javax.inject.Inject
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 
 import com.examshield.ai.data.local.model.LearnedRule
 import com.examshield.ai.domain.model.ClassificationResult
@@ -16,8 +17,12 @@ import com.examshield.ai.data.local.model.SignalDecision
 import com.examshield.ai.domain.model.SupervisorFeedback
 
 class AdaptiveLearningEngine @Inject constructor(
-    private val learningRepository: LearningRepository
+    private val learningRepository: com.examshield.ai.domain.repository.LearningRepository
 ) {
+    private val denoisingEngine = SignalDenoisingEngine()
+
+    // Self-Correction Loop: MAC Address -> Penalty Score
+    private val selfCorrectionPenalties = ConcurrentHashMap<String, Int>()
 
     // How far back to look for recent activity
     private val RECENCY_THRESHOLD_MS = TimeUnit.MINUTES.toMillis(5)
@@ -29,13 +34,17 @@ class AdaptiveLearningEngine @Inject constructor(
      * Analyzes a detected object, updates the baseline, and returns context about it.
      */
     suspend fun analyze(detectedObject: DetectedObject): AnalysisContext {
+        // 0. SIGNAL DENOISING (Surgical Clean)
+        val cleanRssi = denoisingEngine.denoise(detectedObject.macAddress, detectedObject.signalStrengthRssi)
+        val stability = denoisingEngine.getStabilityScore(detectedObject.macAddress)
+
         // Record the raw scan
         learningRepository.addScan(
             Scan(
                 macAddress = detectedObject.macAddress,
                 deviceName = detectedObject.name,
                 timestamp = detectedObject.timestampMs,
-                signalStrength = detectedObject.signalStrengthRssi
+                signalStrength = cleanRssi
             )
         )
 
@@ -98,9 +107,12 @@ class AdaptiveLearningEngine @Inject constructor(
             isMarkedFriendly = friendlyRecord != null,
             isMarkedCheating = cheatingRecord != null,
             cheatingHitCount = cheatingRecord?.hitCount ?: 0,
-            feedbackRiskElevation = feedbackRiskElevation
+            feedbackRiskElevation = feedbackRiskElevation,
+            stability = stability
         )
     }
+
+    fun getmacPenalty(mac: String): Int = selfCorrectionPenalties[mac] ?: 0
 
     suspend fun applySupervisorLogic(
         result: ClassificationResult,
@@ -167,6 +179,9 @@ class AdaptiveLearningEngine @Inject constructor(
                     finalRiskLevel = 1
                 )
             )
+            
+            // Learn from mistake: Apply a permanent penalty for this signature
+            selfCorrectionPenalties[result.rawObject.macAddress] = 50
         }
     }
 
@@ -237,5 +252,6 @@ data class AnalysisContext(
     val isMarkedFriendly: Boolean = false,
     val isMarkedCheating: Boolean = false,
     val cheatingHitCount: Int = 0,
-    val feedbackRiskElevation: Int = 0
+    val feedbackRiskElevation: Int = 0,
+    val stability: Float = 0f
 )

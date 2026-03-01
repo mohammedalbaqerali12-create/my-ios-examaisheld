@@ -36,10 +36,11 @@ fun SignalFinderScreen(
     val locState by viewModel.localizationState.collectAsState()
     val identifiedTargets by viewModel.localizationController.targetPoints.collectAsState()
     
-    val targetGps by viewModel.localizationController.targetGps.collectAsState()
     val azureAzimuth by viewModel.azimuth.collectAsState()
+    val azurePitch by viewModel.pitch.collectAsState()
     val samples = viewModel.getTrilaterationSamples()
     
+    // Auto-enable AR Mode if we are highly confident
     var isArMode by remember { mutableStateOf(false) }
 
     Box(
@@ -85,7 +86,10 @@ fun SignalFinderScreen(
                         modifier = Modifier.fillMaxSize(),
                         supervisorPos = supervisorPos,
                         devicePos = estimatedPos,
-                        currentAzimuth = azureAzimuth
+                        currentAzimuth = azureAzimuth,
+                        currentPitch = azurePitch,
+                        deviceType = targetDevice?.deviceType?.name ?: "UNKNOWN",
+                        rssi = targetDevice?.rawObject?.signalStrengthRssi ?: -100
                     )
                     
                     // AR HUD Info
@@ -119,11 +123,10 @@ fun SignalFinderScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // GPS & AI STATUS DASHBOARD
+            // AI STATUS DASHBOARD
             LocalizationDashboard(
                 confidence = confidence,
                 errorRadius = errorRadius,
-                targetGps = targetGps,
                 locState = locState,
                 isArMode = isArMode,
                 onToggleWalkMode = {
@@ -155,7 +158,6 @@ fun SignalFinderScreen(
 fun LocalizationDashboard(
     confidence: Int,
     errorRadius: Float,
-    targetGps: Pair<Double, Double>?,
     locState: LocalizationState,
     isArMode: Boolean,
     onToggleWalkMode: () -> Unit,
@@ -177,13 +179,13 @@ fun LocalizationDashboard(
                 else -> Color.Red
             }
             InfoBlock("ثقة الذكاء الاصطناعي", "$confidence%", confColor)
-            InfoBlock("دقة التموضع", "± ${"%.1f".format(errorRadius)} م", Color.Red)
+            InfoBlock("دقة التموضع (Error)", "± ${"%.1f".format(errorRadius)} م", Color.Red)
             
             Column {
-                Text("إحداثيات الهدف (Target GPS)", color = Color.Gray, fontSize = 9.sp)
+                Text("نظام التتبع (Engine)", color = Color.Gray, fontSize = 9.sp)
                 Text(
-                    text = if (targetGps != null) "${"%.5f".format(targetGps.first)}, ${"%.5f".format(targetGps.second)}" else "جاري الحساب...",
-                    color = Color.Yellow,
+                    text = "Astra Nexus Kinetic",
+                    color = Color.Cyan,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp
                 )
@@ -192,33 +194,37 @@ fun LocalizationDashboard(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // AR SEEK BUTTON (Replace Google Maps)
+        // AR SEEK BUTTON (Relaxed thresholds for better UX)
+        val isReady = errorRadius < 4.0f || confidence > 40
+        
         Button(
             onClick = onToggleArMode,
             modifier = Modifier.fillMaxWidth().height(56.dp).padding(bottom = 8.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isArMode) Color.Red else if (errorRadius < 1.5f) Color(0xFF00E676) else Color(0xFF424242)
+                containerColor = if (isArMode) Color.Red else if (isReady) Color(0xFF00E676) else Color(0xFF424242)
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                if (isArMode) "إغلاق التتبع البصري" else if (errorRadius < 1.5f) "تفعيل التتبع البصري بالكاميرا (AR Seek)" else "انتظر اقتراب المسافة لتفعيل الكاميرا",
-                color = Color.White,
+                if (isArMode) "إغلاق التتبع البصري بالكاميرا" 
+                else if (isReady) "تفعيل رادار الكاميرا (AR Seek)" 
+                else "جاري تحليل الإشارة... حرك الهاتف لتفعيل الكاميرا",
+                color = if (isReady || isArMode) Color.Black else Color.Gray,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        // SINGLE AUTOMATIC BUTTON
+        // KINETIC BUTTON (Step Detection)
         Button(
             onClick = onToggleWalkMode,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00FF00) else Color.Cyan
+                containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00FF00) else Color(0xFF1E88E5)
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                if (locState == LocalizationState.WALK_SAMPLING_MODE) "التتبع الآلي للهدف نشط (GPS Enabled)" else "تفعيل المسح الجغرافي الآلي (GPS Mode)",
+                if (locState == LocalizationState.WALK_SAMPLING_MODE) "التتبع الحركي نشط (امشِ لتسجيل النقاط)" else "تفعيل المسح الحركي الآلي (Kinetic Mode)",
                 color = Color.Black,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 13.sp
@@ -226,9 +232,9 @@ fun LocalizationDashboard(
         }
         
         Text(
-            text = "النظام الآن يسجل العينات آلياً عبر الجيبيس عند المشي لتحليل الذكاء الاصطناعي.",
+            text = "النظام الآن يعتمد على حساب الخطوات ومستشعرات الهاتف الداخلية بنسبة 100% (صفر GPS) لضمان الدقة العالية داخل القاعات.",
             color = Color.White.copy(alpha = 0.5f),
-            fontSize = 10.sp,
+            fontSize = 9.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp)
         )
     }
