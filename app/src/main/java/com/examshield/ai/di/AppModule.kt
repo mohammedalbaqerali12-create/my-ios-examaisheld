@@ -16,6 +16,8 @@ import com.examshield.ai.domain.ai.TFLiteDeviceClassifierImpl
 import com.examshield.ai.domain.repository.DetectionService
 import com.examshield.ai.domain.repository.Scanner
 import com.examshield.ai.domain.usecase.EstimateDistanceUseCase
+import com.examshield.ai.domain.repository.OrbitalUplink
+import com.examshield.ai.data.scanner.OrbitalUplinkServiceImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -186,6 +188,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideOrbitalUplink(@ApplicationContext context: Context): OrbitalUplink {
+        return OrbitalUplinkServiceImpl(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideDetectionService(
         @BluetoothLeScanner bleScanner: Scanner,
         @ClassicBluetoothScanner classicBluetoothScanner: Scanner,
@@ -193,7 +201,9 @@ object AppModule {
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-        classifier: DeviceClassifier
+        classifier: DeviceClassifier,
+        adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
+        orbitalUplink: OrbitalUplink
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -202,7 +212,9 @@ object AppModule {
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
             orientationScanner = orientationScanner,
-            classifier = classifier
+            classifier = classifier,
+            adaptiveLearningEngine = adaptiveLearningEngine,
+            orbitalUplink = orbitalUplink
         )
     }
 }

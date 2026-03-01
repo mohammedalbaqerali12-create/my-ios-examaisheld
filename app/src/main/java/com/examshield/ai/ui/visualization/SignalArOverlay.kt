@@ -71,9 +71,7 @@ fun SignalArOverlay(
             // Screen mapping
             val screenX = centerX + (relativeAzimuth / (hFov / 2)) * (size.width / 2)
             
-            // Pitch mapping: 0 is flat forwarding. If phone tilts UP (Pitch < 0), marker goes DOWN.
-            // Adjust based on typical holding angle (-70 to -110 is standing up).
-            // Let's assume -90 is looking straight ahead.
+            // Pitch mapping
             val normalizedPitch = currentPitch + 90f
             val screenY = centerY + (normalizedPitch / (vFov / 2)) * (size.height / 2)
 
@@ -82,8 +80,17 @@ fun SignalArOverlay(
             val baseMarkerSize = 40.dp.toPx() * scale
             val alpha = (1.0 - (distance / 10.0).coerceIn(0.0, 0.8)).toFloat()
 
-            // Main Reticle Color based on Threat
-            val signatureColor = if (deviceType.contains("PHONE") || deviceType.contains("WATCH")) Color.Red else Color.Cyan
+            // Main Reticle Color & Styling based on Threat / Fusion
+            val isFused = deviceType.startsWith("FUSED_")
+            val cleanDeviceType = deviceType.replace("FUSED_", "")
+            
+            val signatureColor = when {
+                isFused -> Color(0xFFFF1744) // Deep Crimson Red for Magnetic Fusion
+                cleanDeviceType.contains("PHONE") || cleanDeviceType.contains("WATCH") -> Color(0xFFFF5252) // Light Red
+                else -> Color.Cyan
+            }
+            
+            val strokeWidth = if (isFused) 4.dp.toPx() else 3.dp.toPx()
 
             withTransform({
                 translate(left = screenX, top = screenY)
@@ -93,7 +100,7 @@ fun SignalArOverlay(
                 drawArc(
                     color = signatureColor.copy(alpha = alpha),
                     startAngle = 0f, sweepAngle = 90f, useCenter = false,
-                    style = Stroke(width = 3.dp.toPx()),
+                    style = Stroke(width = strokeWidth),
                     topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
                     size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
                 )
@@ -129,8 +136,10 @@ fun SignalArOverlay(
 
             // Sci-Fi Text Metrics
             val distanceText = "RANGE: ${"%.1f".format(distance)}m"
+            val fusionWarning = if (isFused) "\n[MAG FUSION CONFIRMED]" else ""
+            
             val textLayoutResult = textMeasurer.measure(
-                text = "$deviceType\n$distanceText",
+                text = "$cleanDeviceType\n$distanceText$fusionWarning",
                 style = androidx.compose.ui.text.TextStyle(
                     color = signatureColor,
                     fontSize = 12.sp,
@@ -144,6 +153,7 @@ fun SignalArOverlay(
             )
 
             // Threat Warning if very close
+
             if (distance < 2.0) {
                  val flash = if (System.currentTimeMillis() % 1000 > 500) Color.Red else Color.Yellow
                  val warningText = textMeasurer.measure(

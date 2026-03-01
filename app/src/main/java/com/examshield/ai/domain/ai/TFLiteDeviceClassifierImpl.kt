@@ -129,7 +129,8 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         // --- ASTRA V5 SURGICAL NAMING ---
         // If the device has no name, generate a professional technical signature
         if (result.rawObject.name.isNullOrBlank()) {
-            val surgicalName = generateProfessionalName(result)
+            val manufacturer = OuiLookup.lookup(result.rawObject.macAddress)
+            val surgicalName = generateProfessionalName(result, manufacturer)
             return result.copy(rawObject = result.rawObject.copy(name = surgicalName))
         }
         
@@ -298,26 +299,59 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         )
     }
 
-    private fun generateProfessionalName(result: ClassificationResult): String {
-        val macTail = result.rawObject.macAddress.takeLast(4).uppercase()
-        return when (result.deviceType) {
-            DeviceType.SMARTPHONE -> "PHONE_SIG_[$macTail]"
-            DeviceType.SMARTWATCH -> "WATCH_SIG_[$macTail]"
-            DeviceType.WIRELESS_EARBUD -> "EAR_SIG_[$macTail]"
-            DeviceType.NANO_EARPIECE -> "HYBRID_SIG_[$macTail]"
-            DeviceType.MAGNETIC_ANOMALY -> "PHYS_SIG_[$macTail]"
-            else -> "NODE_[$macTail]"
+    private fun generateProfessionalName(result: ClassificationResult, rawManufacturer: String?): String {
+        val isFused = result.discoveryReason.contains("MAG_FUSION")
+        val prefix = if (isFused) "FUSED_" else ""
+        
+        val rawName = result.rawObject.name
+        if (!rawName.isNullOrBlank()) {
+             return "$prefix$rawName" // If the device broadcasts its real name, show it!
         }
+
+        // If hidden, try to guess brand from OUI Manufacturer
+        val manufacturer = rawManufacturer?.lowercase() ?: "Unknown"
+
+        val brandPrefix = when {
+            manufacturer.contains("apple") -> "[Apple]"
+            manufacturer.contains("samsung") -> "[Samsung]"
+            manufacturer.contains("google") -> "[Google]"
+            manufacturer.contains("huawei") -> "[Huawei]"
+            manufacturer.contains("xiaomi") -> "[Xiaomi]"
+            manufacturer.contains("oppo") -> "[Oppo]"
+            manufacturer.contains("vivo") -> "[Vivo]"
+            manufacturer.contains("oneplus") -> "[OnePlus]"
+            manufacturer.contains("realme") -> "[Realme]"
+            manufacturer.contains("motorola") -> "[Motorola]"
+            manufacturer.contains("jabra") -> "[Jabra]"
+            manufacturer.contains("bose") -> "[Bose]"
+            manufacturer.contains("sony") -> "[Sony]"
+            manufacturer.contains("garmin") -> "[Garmin]"
+            manufacturer.contains("fitbit") -> "[Fitbit]"
+            manufacturer.contains("espressif") -> "[ESP32 Serial]"
+            else -> "[Hidden]"
+        }
+        
+        val typeSuffix = when (result.deviceType) {
+            DeviceType.SMARTPHONE -> "Phone"
+            DeviceType.SMARTWATCH -> "Smartwatch"
+            DeviceType.WIRELESS_EARBUD -> "Earbuds"
+            DeviceType.NANO_EARPIECE -> "Tx Module"
+            DeviceType.MAGNETIC_ANOMALY -> "Magnetic Source"
+            else -> "Device"
+        }
+
+        return "$prefix$brandPrefix $typeSuffix"
     }
 
     private fun calculateConfidence(type: DeviceType, detectedObject: DetectedObject, zone: DistanceZone): Int {
         var score = when (type) {
             DeviceType.SMARTWATCH, DeviceType.SMARTPHONE -> 85
             DeviceType.WIRELESS_EARBUD, DeviceType.NANO_EARPIECE -> 75
-            DeviceType.MAGNETIC_ANOMALY -> 90 // High confidence as it's a direct physical detection
-            DeviceType.ROUTER_INFRASTRUCTURE -> 30 // Low confidence as these are filtered out anyway
+            DeviceType.MAGNETIC_ANOMALY -> 30 // Deprioritized, the Fusion Engine handles real threats
+            DeviceType.ROUTER_INFRASTRUCTURE -> 10 
             DeviceType.SUSPICIOUS_UNKNOWN -> 50
         }
+
 
         if (zone == DistanceZone.IMMEDIATE) {
             score += 15

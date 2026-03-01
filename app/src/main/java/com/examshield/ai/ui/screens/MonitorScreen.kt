@@ -104,18 +104,43 @@ fun MonitorScreen(
                 
                 /* Legacy Task Panel Removed */
 
+                val criticalThreats = threatList.filter { it.riskLevel == RiskLevel.LEVEL_4_CONFIRMED_THREAT || it.discoveryReason.contains("NEXUS") }
+                val activeMonitoring = threatList.filter { !criticalThreats.contains(it) }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
-                    items(threatList.sortedByDescending { it.confidenceScore }) { threat ->
-                        // Trigger Haptic on High Risk proximity
-                        if (threat.riskLevel == RiskLevel.LEVEL_4_CONFIRMED_THREAT) {
+                    if (criticalThreats.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "⚠️ الأهداف الحرجة (Critical)", 
+                                color = com.examshield.ai.ui.theme.ThreatRed, 
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(criticalThreats.sortedByDescending { it.confidenceScore }) { threat ->
                              LaunchedEffect(threat.rawObject.macAddress) {
                                  haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                              }
+                             ThreatCard(threat = threat, navController = navController, viewModel = viewModel)
                         }
-                        ThreatCard(threat = threat, navController = navController, viewModel = viewModel)
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    }
+
+                    if (activeMonitoring.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "📡 أهداف قيد التحليل (Active)", 
+                                color = com.examshield.ai.ui.theme.NeonCyan, 
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(activeMonitoring.sortedByDescending { it.confidenceScore }) { threat ->
+                            ThreatCard(threat = threat, navController = navController, viewModel = viewModel)
+                        }
                     }
                 }
             }

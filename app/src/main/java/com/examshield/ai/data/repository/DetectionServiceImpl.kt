@@ -4,8 +4,14 @@ import com.examshield.ai.domain.ai.DeviceClassifier
 import com.examshield.ai.domain.model.ClassificationResult
 import com.examshield.ai.domain.repository.DetectionService
 import com.examshield.ai.domain.repository.Scanner
+import com.examshield.ai.domain.repository.OrbitalData
+import com.examshield.ai.domain.repository.OrbitalUplink
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.buffer
@@ -13,6 +19,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -23,7 +30,9 @@ class DetectionServiceImpl(
     private val wifiDirectScanner: Scanner,
     private val magneticFieldScanner: Scanner,
     private val orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
-    private val classifier: DeviceClassifier
+    private val classifier: DeviceClassifier,
+    private val adaptiveLearningEngine: com.examshield.ai.domain.ai.AdaptiveLearningEngine,
+    private val orbitalUplink: OrbitalUplink
 ) : DetectionService {
 
     // ASTRA NEXUS: HIGH-PRECISION TRACKING ENGINE
@@ -34,9 +43,31 @@ class DetectionServiceImpl(
 
     private val lastLogTime = ConcurrentHashMap<String, Long>()
 
+    private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
+    val currentOrbitalData: StateFlow<OrbitalData>
+        get() = _currentOrbitalData.asStateFlow()
+    private val _currentOrbitalData = MutableStateFlow(OrbitalData())
+
     override fun observeThreats(): Flow<ClassificationResult> {
         var lastMagneticAnomalyTime = 0L
         
+        // Trigger Global Intel Sync asynchronously
+        scope.launch {
+            try {
+                adaptiveLearningEngine.checkForGlobalThreatUpdates()
+            } catch (e: Exception) {
+                android.util.Log.e("ASTRA_NEXUS", "Intel Sync Failed: ${e.message}")
+            }
+        }
+
+        // Trigger Orbital Satellite Streaming
+        scope.launch {
+            orbitalUplink.streamOrbitalData().collect { data ->
+                _currentOrbitalData.value = data
+            }
+        }
+
         val mergedScanners = merge(
             bleScanner.startScanning(),
             classicBluetoothScanner.startScanning(),
@@ -47,7 +78,7 @@ class DetectionServiceImpl(
 
         return mergedScanners
             .buffer(capacity = 512, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-            .map { detectedObj ->
+            .mapNotNull { detectedObj ->
                 // Memory Management
                 if (Math.random() < 0.001) {
                     if (ekfFilters.size > 200) {
@@ -56,9 +87,10 @@ class DetectionServiceImpl(
                     }
                 }
 
+                // MAG ISOLATION: Trap raw magnetic anomalies here. They supercharge the next RF read.
                 if (detectedObj.macAddress == "MAGNETIC_FIELD_ANOMALY") {
                     lastMagneticAnomalyTime = System.currentTimeMillis()
-                    return@map classifier.classify(detectedObj)
+                    return@mapNotNull null // DO NOT emit the raw magnetic anomaly to the UI
                 }
 
                 // ASTRA NEXUS: SURGICAL SIGNAL SMOOTHING
@@ -75,27 +107,29 @@ class DetectionServiceImpl(
                 val optimizedObj = detectedObj.copy(signalStrengthRssi = smoothedRssi)
                 val baseClassification = classifier.classify(optimizedObj)
                 
-                // SENSOR FUSION & PRECISION MODE
+                // SENSOR FUSION & PRECISION MODE (Magnetic Binding)
                 val timeSinceMagnet = now - lastMagneticAnomalyTime
                 val isNearRF = baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE || 
                              baseClassification.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR
                 
                 var finalResult = baseClassification
-                if (timeSinceMagnet < 3000 && isNearRF) {
+                // If the device is close (RF) AND we saw a magnetic spike recently (within 4 seconds)
+                if (timeSinceMagnet < 4000 && isNearRF) {
                     finalResult = baseClassification.copy(
                         riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
-                        confidenceScore = 100,
-                        discoveryReason = "${baseClassification.discoveryReason} SENSOR_FUSION_MATCH".trim()
+                        confidenceScore = 100, // Instant 100% confidence lockdown
+                        discoveryReason = "${baseClassification.discoveryReason} [MAG_FUSION_VERIFIED]".trim()
                     )
                 }
 
                 // Hardware Intensity Orchestration
-                if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE || 
-                    finalResult.riskLevel == com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT) {
+                if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.IMMEDIATE) {
                     updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.ULTRA_FAST)
-                    finalResult = finalResult.copy(
-                        discoveryReason = "${finalResult.discoveryReason} [PRECISION_LOCK]".trim()
-                    )
+                    if (finalResult.confidenceScore < 100) { // Don't append if MAG_FUSION is there already
+                         finalResult = finalResult.copy(
+                             discoveryReason = "${finalResult.discoveryReason} [PRECISION_LOCK]".trim()
+                         )
+                    }
                 } else if (finalResult.distanceZone == com.examshield.ai.domain.model.DistanceZone.NEAR) {
                     updateAllScannersIntensity(com.examshield.ai.domain.repository.ScanIntensity.HIGH_PRECISION)
                 } else {
@@ -116,7 +150,7 @@ class DetectionServiceImpl(
 
                 finalResult = finalResult.copy(
                     confidenceScore = confidence,
-                    discoveryReason = "${finalResult.discoveryReason} [EKF_ACTIVE]".trim()
+                    discoveryReason = "${finalResult.discoveryReason} [EKF]${if (_currentOrbitalData.value.isSecure && confidence == 100) " [ORBIT: ${_currentOrbitalData.value.latitude.toString().take(6)}, ${_currentOrbitalData.value.longitude.toString().take(6)}]" else ""}".trim()
                 )
 
                 // Hardware Intensity Orchestration based on confidence

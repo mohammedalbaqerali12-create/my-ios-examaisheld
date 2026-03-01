@@ -166,7 +166,8 @@ fun LocalizationDashboard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+            .background(Color(0xFF0A0E17), RoundedCornerShape(2.dp)) // Sharper edges for sci-fi
+            .border(1.dp, Color.Cyan.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -174,20 +175,22 @@ fun LocalizationDashboard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             val confColor = when {
-                confidence > 85 -> Color.Green
-                confidence > 50 -> Color.Yellow
-                else -> Color.Red
+                confidence > 85 -> Color(0xFF00FF00) // Terminal Green
+                confidence > 50 -> Color(0xFFFFB300) // Warning Amber
+                else -> Color(0xFFFF1744) // Error Red
             }
-            InfoBlock("ثقة الذكاء الاصطناعي", "$confidence%", confColor)
-            InfoBlock("دقة التموضع (Error)", "± ${"%.1f".format(errorRadius)} م", Color.Red)
+            InfoBlock("AI SYNTH. CONFIDENCE", "${confidence}%", confColor)
+            InfoBlock("ERROR MARGIN", "±${"%.1f".format(errorRadius)}m", Color(0xFFFF1744))
             
-            Column {
-                Text("نظام التتبع (Engine)", color = Color.Gray, fontSize = 9.sp)
+            Column(horizontalAlignment = Alignment.End) {
+                Text("TACTICAL ENGINE", color = Color.Gray, fontSize = 8.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                 Text(
-                    text = "Astra Nexus Kinetic",
+                    text = "ASTRA NEXUS",
                     color = Color.Cyan,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
+                    fontWeight = FontWeight.Black,
+                    fontSize = 11.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    letterSpacing = 1.sp
                 )
             }
         }
@@ -199,51 +202,48 @@ fun LocalizationDashboard(
         
         Button(
             onClick = onToggleArMode,
-            modifier = Modifier.fillMaxWidth().height(56.dp).padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp).padding(bottom = 8.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isArMode) Color.Red else if (isReady) Color(0xFF00E676) else Color(0xFF424242)
+                containerColor = if (isArMode) Color(0xFFFF1744) else if (isReady) Color(0xFF00E676) else Color(0xFF1E293B)
             ),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(2.dp)
         ) {
             Text(
-                if (isArMode) "إغلاق التتبع البصري بالكاميرا" 
-                else if (isReady) "تفعيل رادار الكاميرا (AR Seek)" 
-                else "جاري تحليل الإشارة... حرك الهاتف لتفعيل الكاميرا",
-                color = if (isReady || isArMode) Color.Black else Color.Gray,
-                fontWeight = FontWeight.Bold
+                if (isArMode) "[X] DEACTIVATE OPTICAL SENSOR" 
+                else if (isReady) "[+] ENGAGE AR SEEK TARGETING" 
+                else "[...] ANALYZING SIGNAL VECTOR",
+                color = if (isReady || isArMode) Color.Black else Color.Cyan.copy(alpha=0.5f),
+                fontWeight = FontWeight.Black,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontSize = 11.sp
             )
         }
 
         // KINETIC BUTTON (Step Detection)
         Button(
             onClick = onToggleWalkMode,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00FF00) else Color(0xFF1E88E5)
+                containerColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else Color(0xFF0284C7)
             ),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(2.dp)
         ) {
             Text(
-                if (locState == LocalizationState.WALK_SAMPLING_MODE) "التتبع الحركي نشط (امشِ لتسجيل النقاط)" else "تفعيل المسح الحركي الآلي (Kinetic Mode)",
+                if (locState == LocalizationState.WALK_SAMPLING_MODE) "[>] KINETIC SCAN ACTIVE (WALK)" else "[ ] INITIATE KINETIC SCAN",
                 color = Color.Black,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 13.sp
+                fontWeight = FontWeight.Black,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontSize = 12.sp,
+                letterSpacing = 1.sp
             )
         }
-        
-        Text(
-            text = "النظام الآن يعتمد على حساب الخطوات ومستشعرات الهاتف الداخلية بنسبة 100% (صفر GPS) لضمان الدقة العالية داخل القاعات.",
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 9.sp,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp)
-        )
     }
 }
 
 @Composable
 fun InfoBlock(label: String, value: String, valueColor: Color) {
     Column {
-        Text(label, color = Color.Gray, fontSize = 9.sp)
-        Text(value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(label, color = Color.Gray, fontSize = 8.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+        Text(value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
     }
 }

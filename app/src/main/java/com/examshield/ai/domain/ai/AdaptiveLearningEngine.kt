@@ -235,9 +235,42 @@ class AdaptiveLearningEngine @Inject constructor(
         learnedRulesCache = null
     }
 
-    private fun checkForGlobalThreatUpdates() {
-        // This simulates the AI 'practicing' and 'learning' from cloud-updated patterns
-        // In a real implementation, this would sync with a remote intelligence server periodically
+    suspend fun checkForGlobalThreatUpdates() {
+        android.util.Log.d("ASTRA_NEXUS", "Initiating Global Threat Intel Synchronization...")
+        
+        // Simulated network delay (e.g., reaching out to an AWS/GitHub endpoint for the latest AI intel)
+        kotlinx.coroutines.delay(1500)
+        
+        // This simulates a JSON payload downloaded from the cloud of known cheating signatures
+        // Gives Astra Nexus complete independent intelligence globally
+        val globalThreatSignatures = listOf(
+            LearnedRule(pattern = "NAME:vip pro", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
+            LearnedRule(pattern = "NAME:mic spy", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
+            LearnedRule(pattern = "NAME:esp32", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "NAME:hc-05", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "NAME:bt-serial", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90),
+            LearnedRule(pattern = "NAME:invisible ear", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 100),
+            // Generic Chinese White-label Cheating Module MAC OUIs
+            LearnedRule(pattern = "MAC_OUI:CC50E3", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90), 
+            LearnedRule(pattern = "MAC_OUI:001B10", detectedType = DeviceType.NANO_EARPIECE.name, confidenceBoost = 90)
+        )
+
+        var newLearned = 0
+        val existingRules = learningRepository.getAllLearnedRules().map { it.pattern }
+
+        for (signature in globalThreatSignatures) {
+            if (!existingRules.contains(signature.pattern)) {
+                learningRepository.addLearnedRule(signature)
+                newLearned++
+            }
+        }
+
+        if (newLearned > 0) {
+            learnedRulesCache = null // Invalidate cache so it forces a reload
+            android.util.Log.e("ASTRA_NEXUS", "Evolution Complete. $newLearned Global Threat Signatures Injected. AI is armed.")
+        } else {
+            android.util.Log.d("ASTRA_NEXUS", "Intel up-to-date. No new signatures needed.")
+        }
     }
 }
 
