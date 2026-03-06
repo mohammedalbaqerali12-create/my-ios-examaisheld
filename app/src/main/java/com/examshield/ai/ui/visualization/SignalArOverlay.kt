@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,41 +48,92 @@ fun SignalArOverlay(
 
     Canvas(modifier = modifier.fillMaxSize()) {
         
-        // DRAW VISION TARGETS (ML Kit Bounding Boxes)
-        // Using approximate VGA resolution mapping (480x640) for standard ImageAnalysis in Portrait.
+        // --- LAYER 1: INTERSTELLAR VISION GRID ---
         val imgWidth = 480f
         val imgHeight = 640f
         
         for (visionObj in visionTargets) {
             val isPerson = visionObj.labels.any { it.contains("Fashion", ignoreCase = true) || it.contains("Person", ignoreCase = true) || it.contains("Clothing", ignoreCase = true) }
-            val boxColor = if (isPerson) Color(0xFFFF5252) else Color(0xFF00E676)
+            val boxColor = if (isPerson) Color(0xFFFF5252) else Color(0xFF00E5FF)
             
             val left = (visionObj.boundingBox.left / imgWidth) * size.width
             val top = (visionObj.boundingBox.top / imgHeight) * size.height
             val right = (visionObj.boundingBox.right / imgWidth) * size.width
             val bottom = (visionObj.boundingBox.bottom / imgHeight) * size.height
             
-            drawRect(
-                color = boxColor.copy(alpha = 0.4f),
-                topLeft = Offset(left, top),
-                size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
-                style = Stroke(width = 2.dp.toPx())
-            )
+            val boxWidth = right - left
+            val boxHeight = bottom - top
+
+            // NEURAL DATA STREAM (Faint vertical lines inside box)
+            if (!isPerson) {
+                val streamPulse = ((System.currentTimeMillis() % 1000) / 1000f)
+                drawLine(
+                    color = boxColor.copy(alpha = 0.1f * (1f - streamPulse)),
+                    start = Offset(left + boxWidth * 0.2f, top),
+                    end = Offset(left + boxWidth * 0.2f, bottom),
+                    strokeWidth = 1.dp.toPx()
+                )
+                drawLine(
+                    color = boxColor.copy(alpha = 0.1f * streamPulse),
+                    start = Offset(left + boxWidth * 0.8f, top),
+                    end = Offset(left + boxWidth * 0.8f, bottom),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+
+            // INTERSTELLAR TARGETING BRACKETS (Instead of a simple box)
+            val bracketLen = (boxWidth * 0.2f).coerceAtMost(20.dp.toPx())
+            val stroke = 2.dp.toPx()
             
-            // Draw Target ID / Label
-            val labelText = if (isPerson) "SUSPECT_MAPPED [ID:${visionObj.trackingId ?: 0}]" else "OBJ [ID:${visionObj.trackingId ?: 0}]"
+            // Top Left
+            drawLine(boxColor, Offset(left, top), Offset(left + bracketLen, top), stroke)
+            drawLine(boxColor, Offset(left, top), Offset(left, top + bracketLen), stroke)
+            // Top Right
+            drawLine(boxColor, Offset(right, top), Offset(right - bracketLen, top), stroke)
+            drawLine(boxColor, Offset(right, top), Offset(right, top + bracketLen), stroke)
+            // Bottom Left
+            drawLine(boxColor, Offset(left, bottom), Offset(left + bracketLen, bottom), stroke)
+            drawLine(boxColor, Offset(left, bottom), Offset(left, bottom - bracketLen), stroke)
+            // Bottom Right
+            drawLine(boxColor, Offset(right, bottom), Offset(right - bracketLen, bottom), stroke)
+            drawLine(boxColor, Offset(right, bottom), Offset(right, bottom - bracketLen), stroke)
+
+            // DYNAMIC BRAND RESOLUTION (Interstellar Edition)
+            val brandLabel = when {
+                isPerson -> "NEURAL_SIGNATURE: BIOMETRIC_DETECTED"
+                visionObj.brandHeuristic != null -> {
+                    // Correlate with signal data
+                    val signalBrand = deviceType.uppercase()
+                    when {
+                        signalBrand.contains("SAMSUNG") -> "SAMSUNG_UNIFIED // NODE_SECURED"
+                        signalBrand.contains("APPLE") || signalBrand.contains("IPHONE") -> "APPLE_INTERCEPT // ENCRYPTED_LINK"
+                        signalBrand.contains("GOOGLE") || signalBrand.contains("PIXEL") -> "PIXEL_TERMINAL // SYNC_ACTIVE"
+                        signalBrand.contains("HUAWEI") -> "RELIANCE_NODE // HUAWEI_DETECTED"
+                        else -> "${visionObj.brandHeuristic} // UNIDENTIFIED_MAKE"
+                    }
+                }
+                else -> "INTERSTELLAR_OBJECT // ID:${visionObj.trackingId ?: 0}"
+            }
+
             val textResult = textMeasurer.measure(
-                text = labelText,
+                text = brandLabel,
                 style = androidx.compose.ui.text.TextStyle(
-                    color = boxColor, fontSize = 8.sp, fontWeight = FontWeight.Black, background = Color.Black.copy(0.6f)
+                    color = boxColor, fontSize = 7.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp
                 )
             )
-            drawText(textResult, topLeft = Offset(left, top - textResult.size.height))
+            
+            // Label Background (Cinematic Overlay)
+            drawRect(
+                color = Color.Black.copy(alpha = 0.6f),
+                topLeft = Offset(left, top - textResult.size.height - 4.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(textResult.size.width.toFloat() + 8.dp.toPx(), textResult.size.height.toFloat() + 4.dp.toPx())
+            )
+            drawText(textResult, topLeft = Offset(left + 4.dp.toPx(), top - textResult.size.height - 2.dp.toPx()))
         }
 
         val target = devicePos ?: return@Canvas
         
-        // Calculate relative vector
+        // --- LAYER 2: SURGICAL AR RETICLE ---
         val dx = target.x - supervisorPos.x
         val dy = target.y - supervisorPos.y
         
@@ -95,126 +147,118 @@ fun SignalArOverlay(
         relativeAzimuth = relativeAngleWrap(relativeAzimuth)
         
         val distance = Math.sqrt(dx * dx + dy * dy.toDouble())
-        
-        // Horizontal FOV ~ 60 deg, Vertical FOV ~ 90 deg
         val hFov = 60f
         val vFov = 90f
-        
         val centerX = size.width / 2
         val centerY = size.height / 2
 
         if (Math.abs(relativeAzimuth) < hFov / 2) {
-            // Screen mapping
             val screenX = centerX + (relativeAzimuth / (hFov / 2)) * (size.width / 2)
-            
-            // Pitch mapping
             val normalizedPitch = currentPitch + 90f
             val screenY = centerY + (normalizedPitch / (vFov / 2)) * (size.height / 2)
 
-            // Dynamic Scaling based on distance (closer = much bigger)
             val scale = (1.0 + (5.0 / distance.coerceAtLeast(0.5))).coerceIn(1.0, 5.0).toFloat()
             val baseMarkerSize = 40.dp.toPx() * scale
-            val alpha = (1.0 - (distance / 10.0).coerceIn(0.0, 0.8)).toFloat()
+            val alpha = (1.0 - (distance / 12.0).coerceIn(0.0, 0.8)).toFloat()
 
-            // Main Reticle Color & Styling based on Threat / Fusion
             val isFused = deviceType.startsWith("FUSED_")
             val cleanDeviceType = deviceType.replace("FUSED_", "")
             
             val signatureColor = when {
-                isFused -> Color(0xFFFF1744) // Deep Crimson Red for Magnetic Fusion
-                cleanDeviceType.contains("PHONE") || cleanDeviceType.contains("WATCH") -> Color(0xFFFF5252) // Light Red
-                else -> Color.Cyan
+                isFused -> Color(0xFFFF1744)
+                cleanDeviceType.contains("PHONE") || cleanDeviceType.contains("WATCH") -> Color(0xFFBB86FC) // Neon Purple for Tech
+                else -> Color(0xFF00E5FF)
             }
             
-            val strokeWidth = if (isFused) 4.dp.toPx() else 3.dp.toPx()
-
             withTransform({
                 translate(left = screenX, top = screenY)
                 rotate(degrees = rotation)
             }) {
-                // Outer rotating dashed ring
+                // Outer Interstellar Ring
                 drawArc(
                     color = signatureColor.copy(alpha = alpha),
-                    startAngle = 0f, sweepAngle = 90f, useCenter = false,
-                    style = Stroke(width = strokeWidth),
+                    startAngle = 0f, sweepAngle = 45f, useCenter = false,
+                    style = Stroke(width = 3.dp.toPx()),
                     topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
                     size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
                 )
                 drawArc(
                     color = signatureColor.copy(alpha = alpha),
-                    startAngle = 180f, sweepAngle = 90f, useCenter = false,
+                    startAngle = 120f, sweepAngle = 45f, useCenter = false,
+                    style = Stroke(width = 3.dp.toPx()),
+                    topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
+                    size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
+                )
+                drawArc(
+                    color = signatureColor.copy(alpha = alpha),
+                    startAngle = 240f, sweepAngle = 45f, useCenter = false,
                     style = Stroke(width = 3.dp.toPx()),
                     topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
                     size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
                 )
             }
 
-            // Inner solid ring
+            // Inner Pulsing Compass
             drawCircle(
-                color = signatureColor.copy(alpha = alpha * 0.8f),
-                radius = baseMarkerSize * 0.7f,
+                color = signatureColor.copy(alpha = alpha * 0.4f),
+                radius = baseMarkerSize * 0.6f,
                 center = Offset(screenX, screenY),
-                style = Stroke(width = 2.dp.toPx())
+                style = Stroke(width = 1.dp.toPx())
             )
             
-            // Center Dot
-            drawCircle(
-                color = Color.White,
-                radius = 4.dp.toPx(),
-                center = Offset(screenX, screenY)
-            )
+            // Surgical Deadzone
+            drawCircle(color = Color.White.copy(alpha = alpha), radius = 3.dp.toPx(), center = Offset(screenX, screenY))
 
-            // Crosshairs
-            drawLine(signatureColor, Offset(screenX - baseMarkerSize * 1.5f, screenY), Offset(screenX - baseMarkerSize * 0.8f, screenY), 2.dp.toPx())
-            drawLine(signatureColor, Offset(screenX + baseMarkerSize * 1.5f, screenY), Offset(screenX + baseMarkerSize * 0.8f, screenY), 2.dp.toPx())
-            drawLine(signatureColor, Offset(screenX, screenY - baseMarkerSize * 1.5f), Offset(screenX, screenY - baseMarkerSize * 0.8f), 2.dp.toPx())
-            drawLine(signatureColor, Offset(screenX, screenY + baseMarkerSize * 1.5f), Offset(screenX, screenY + baseMarkerSize * 0.8f), 2.dp.toPx())
-
-            // Sci-Fi Text Metrics
-            val distanceText = "RANGE: ${"%.1f".format(distance)}m"
-            val fusionWarning = if (isFused) "\n[MAG FUSION CONFIRMED]" else ""
+            // Interstellar Telemetry Text
+            val telemetry = buildString {
+                append("NODE: $cleanDeviceType\n")
+                append("DIST: ${"%.2f".format(distance)}M\n")
+                append("AZIM: ${"%.1f".format(relativeAzimuth)}°")
+                if (isFused) append("\nSTATUS: MAG_FUSION_LOCK")
+            }
             
             val textLayoutResult = textMeasurer.measure(
-                text = "$cleanDeviceType\n$distanceText$fusionWarning",
+                text = telemetry,
                 style = androidx.compose.ui.text.TextStyle(
                     color = signatureColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp,
                     background = Color.Black.copy(alpha = 0.5f)
                 )
             )
             drawText(
                 textLayoutResult = textLayoutResult,
-                topLeft = Offset(screenX + baseMarkerSize * 1.2f, screenY - textLayoutResult.size.height / 2)
+                topLeft = Offset(screenX + baseMarkerSize * 1.3f, screenY - textLayoutResult.size.height / 2)
             )
 
-            // Threat Warning if very close
-
             if (distance < 2.0) {
-                 val flash = if (System.currentTimeMillis() % 1000 > 500) Color.Red else Color.Yellow
+                 val flash = if (System.currentTimeMillis() % 600 > 300) Color.Red else Color.Transparent
                  val warningText = textMeasurer.measure(
-                     text = "⚠️ CRITICAL PROXIMITY ⚠️",
+                     text = "⚠️ KINETIC_PROXIMITY_ALERT ⚠️",
                      style = androidx.compose.ui.text.TextStyle(
-                         color = flash, fontSize = 16.sp, fontWeight = FontWeight.Black, background = Color.Black.copy(alpha = 0.8f)
+                         color = flash, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.7f)
                      )
                  )
                  drawText(
                      textLayoutResult = warningText,
-                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize * 2f)
+                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize * 2.2f)
                  )
             }
 
         } else {
-            // OUT OF VIEW INDICATORS (Arrows)
+            // OFF-SCREEN TELEMETRY ARROWS
             val arrowY = centerY
+            val arrowColor = Color(0xFFFFD600)
             if (relativeAzimuth > 0) {
-                drawLine(Color.Yellow, Offset(size.width - 40.dp.toPx(), arrowY), Offset(size.width - 10.dp.toPx(), arrowY), 4.dp.toPx())
-                drawLine(Color.Yellow, Offset(size.width - 20.dp.toPx(), arrowY - 10.dp.toPx()), Offset(size.width - 10.dp.toPx(), arrowY), 4.dp.toPx())
-                drawLine(Color.Yellow, Offset(size.width - 20.dp.toPx(), arrowY + 10.dp.toPx()), Offset(size.width - 10.dp.toPx(), arrowY), 4.dp.toPx())
+                drawLine(arrowColor, Offset(size.width - 40.dp.toPx(), arrowY), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawLine(arrowColor, Offset(size.width - 25.dp.toPx(), arrowY - 10.dp.toPx()), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawLine(arrowColor, Offset(size.width - 25.dp.toPx(), arrowY + 10.dp.toPx()), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
             } else {
-                drawLine(Color.Yellow, Offset(40.dp.toPx(), arrowY), Offset(10.dp.toPx(), arrowY), 4.dp.toPx())
-                drawLine(Color.Yellow, Offset(20.dp.toPx(), arrowY - 10.dp.toPx()), Offset(10.dp.toPx(), arrowY), 4.dp.toPx())
-                drawLine(Color.Yellow, Offset(20.dp.toPx(), arrowY + 10.dp.toPx()), Offset(10.dp.toPx(), arrowY), 4.dp.toPx())
+                drawLine(arrowColor, Offset(40.dp.toPx(), arrowY), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawLine(arrowColor, Offset(25.dp.toPx(), arrowY - 10.dp.toPx()), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawLine(arrowColor, Offset(25.dp.toPx(), arrowY + 10.dp.toPx()), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
             }
         }
     }

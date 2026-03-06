@@ -171,60 +171,73 @@ fun OperativeDashboard(
     onToggleArMode: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(4.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f)),
-        shape = RoundedCornerShape(4.dp)
+        modifier = Modifier.fillMaxWidth().border(1.dp, Color.Cyan.copy(alpha = 0.1f), RoundedCornerShape(2.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f)),
+        shape = RoundedCornerShape(2.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    val confColor = if (confidence > 80) Color.Green else if (confidence > 40) Color.Cyan else Color.Red
-                    Text("SIGNAL_INTEGRITY", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("${confidence}%", color = confColor, fontWeight = FontWeight.Black, fontSize = 28.sp, fontFamily = FontFamily.Monospace)
+                    val confColor = if (confidence > 80) Color(0xFF00E676) else if (confidence > 40) Color(0xFF00E5FF) else Color(0xFFFF5252)
+                    Text("NEURAL_CONFIDENCE", color = Color.Gray, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${confidence}", color = confColor, fontWeight = FontWeight.Black, fontSize = 42.sp, fontFamily = FontFamily.Monospace)
+                        Text("%", color = confColor.copy(alpha = 0.5f), fontSize = 16.sp, modifier = Modifier.padding(bottom = 6.dp, start = 4.dp))
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("RELIABILITY_MARGIN", color = Color.Gray, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text("±${"%.1f".format(errorRadius)}M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+                    Text("ERROR_MARGIN", color = Color.Gray, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
+                    Text("±${"%.2f".format(errorRadius)}M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = FontFamily.Monospace)
+                    
+                    val statusText = when(locState) {
+                        LocalizationState.WALK_SAMPLING_MODE -> "KINETIC_SYNC"
+                        LocalizationState.TRACKING_MOTION -> "POINT_ACQUIRE"
+                        else -> "IDLE_LINK"
+                    }
+                    Text(statusText, color = Color.Cyan.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Black)
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // OVERDRIVE AR TRIGGER
-            val isReady = confidence > 35
+            val isReady = confidence > 30
             Button(
                 onClick = onToggleArMode,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (isArMode) Color.Red.copy(0.2f) else if (isReady) Color.Cyan.copy(0.1f) else Color.Transparent),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isArMode) Color.Red.copy(0.15f) else if (isReady) Color.Cyan.copy(0.05f) else Color.Transparent),
                 shape = RoundedCornerShape(2.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (isArMode) Color.Red else if (isReady) Color.Cyan else Color.Gray.copy(0.3f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isArMode) Color.Red else if (isReady) Color.Cyan else Color.White.copy(0.1f))
             ) {
                 Text(
-                    if (isArMode) "TERMINATE_AR_HUD" else if (isReady) "ENGAGE_OPTICAL_HUD" else "WAITING_FOR_LOCK",
+                    if (isArMode) "DISCONNECT_AR_HUD" else if (isReady) "ENGAGE_INTERSTELLAR_HUD" else "WAITING_FOR_NEURAL_FIX",
                     color = if (isReady || isArMode) Color.White else Color.Gray,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     letterSpacing = 2.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (!isArMode) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // KINETIC SCAN TRIGGER
-            OutlinedButton(
-                onClick = onToggleWalkMode,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(2.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green else Color.Cyan.copy(0.4f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color.Green else Color.Cyan)
-            ) {
-                Text(
-                    if (locState == LocalizationState.WALK_SAMPLING_MODE) "KINETIC_TRACKING_ON" else "START_KINETIC_SAMPLING",
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp
-                )
+                // KINETIC SCAN TRIGGER
+                OutlinedButton(
+                    onClick = onToggleWalkMode,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(2.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else Color.Cyan.copy(0.3f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else Color.Cyan)
+                ) {
+                    Text(
+                        if (locState == LocalizationState.WALK_SAMPLING_MODE) "KINETIC_SYNC_ACTIVE" else "START_KINETIC_MAPPING",
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
         }
     }

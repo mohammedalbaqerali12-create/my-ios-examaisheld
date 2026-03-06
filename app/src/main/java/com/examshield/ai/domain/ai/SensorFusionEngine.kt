@@ -73,7 +73,30 @@ class SensorFusionEngine(
     }
 
     /**
-     * Calculates the "Signal Integrity Index" (SII)
+     * Calculates the "Global Synergy Score" (GSS)
+     * Factors in signal stability, vision confirmation, and magnetic alignment.
+     */
+    fun calculateSynergyScore(
+        macAddress: String,
+        visionConfirmed: Boolean = false,
+        magneticAnomalyNearby: Boolean = false
+    ): Int {
+        val integrity = getSignalIntegrity(macAddress)
+        var score = (integrity * 100).toInt()
+
+        // Astra Prime: Cross-Sensor Synergetics
+        if (visionConfirmed) score += 25
+        if (magneticAnomalyNearby) score += 35
+        
+        // Bonus for high-stability multi-sensor lock
+        if (visionConfirmed && magneticAnomalyNearby && integrity > 0.8f) {
+            score += 20
+        }
+
+        return score.coerceIn(0, 100)
+    }
+
+    /**
      * Returns a score from 0.0 to 1.0 based on signal stability.
      */
     fun getSignalIntegrity(macAddress: String): Float {
@@ -83,8 +106,8 @@ class SensorFusionEngine(
         val avg = history.average()
         val variance = history.map { (it - avg).pow(2.0) }.sum() / history.size
         
-        // 0 variance = 1.0 score, 40+ variance = 0.0 score
-        return (1.0f - (variance.toFloat() / 40.0f).coerceIn(0.0f, 1.0f))
+        // Astra Prime: Ultra-tight tolerance for elite precision
+        return (1.0f - (variance.toFloat() / 30.0f).coerceIn(0.0f, 1.0f))
     }
 
     fun purge(macAddress: String) {

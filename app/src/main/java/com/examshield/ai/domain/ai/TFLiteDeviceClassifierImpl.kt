@@ -305,42 +305,46 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         
         val rawName = result.rawObject.name
         if (!rawName.isNullOrBlank()) {
-             return "$prefix$rawName" // If the device broadcasts its real name, show it!
+             // Astra V11: Format known names with a tactical prefix
+             return "$prefix$rawName".uppercase()
         }
 
-        // If hidden, try to guess brand from OUI Manufacturer
+        // If hidden, deep-scan manufacturer OUI
         val manufacturer = rawManufacturer?.lowercase() ?: "Unknown"
 
         val brandPrefix = when {
-            manufacturer.contains("apple") -> "[Apple]"
-            manufacturer.contains("samsung") -> "[Samsung]"
-            manufacturer.contains("google") -> "[Google]"
-            manufacturer.contains("huawei") -> "[Huawei]"
-            manufacturer.contains("xiaomi") -> "[Xiaomi]"
-            manufacturer.contains("oppo") -> "[Oppo]"
-            manufacturer.contains("vivo") -> "[Vivo]"
-            manufacturer.contains("oneplus") -> "[OnePlus]"
-            manufacturer.contains("realme") -> "[Realme]"
-            manufacturer.contains("motorola") -> "[Motorola]"
-            manufacturer.contains("jabra") -> "[Jabra]"
-            manufacturer.contains("bose") -> "[Bose]"
-            manufacturer.contains("sony") -> "[Sony]"
-            manufacturer.contains("garmin") -> "[Garmin]"
-            manufacturer.contains("fitbit") -> "[Fitbit]"
-            manufacturer.contains("espressif") -> "[ESP32 Serial]"
-            else -> "[Hidden]"
+            manufacturer.contains("apple") -> "APPLE_CORE"
+            manufacturer.contains("samsung") -> "SAMSUNG_GALAXY"
+            manufacturer.contains("google") -> "GOOGLE_PIXEL"
+            manufacturer.contains("huawei") -> "HUAWEI_EMUI"
+            manufacturer.contains("xiaomi") -> "XIAOMI_MI"
+            manufacturer.contains("oppo") -> "OPPO_LINK"
+            manufacturer.contains("vivo") -> "VIVO_CONNECT"
+            manufacturer.contains("oneplus") -> "ONEPLUS_OXYGEN"
+            manufacturer.contains("realme") -> "REALME_NODE"
+            manufacturer.contains("motorola") -> "MOTOROLA_MOTO"
+            manufacturer.contains("sony") -> "SONY_XPERIA"
+            manufacturer.contains("jabra") -> "JABRA_SOUND"
+            manufacturer.contains("bose") -> "BOSE_QUIET"
+            manufacturer.contains("garmin") -> "GARMIN_TACTICAL"
+            manufacturer.contains("fitbit") -> "FITBIT_HEALTH"
+            manufacturer.contains("espressif") -> "ESP32_TRANSCEIVER"
+            manufacturer.contains("microsoft") -> "SURFACE_HUB"
+            manufacturer.contains("intel") -> "PRO_WIRELESS"
+            manufacturer.contains("amazon") -> "AMAZON_ECHO"
+            else -> "UNKNOWN_INTERCEPT"
         }
         
         val typeSuffix = when (result.deviceType) {
-            DeviceType.SMARTPHONE -> "Phone"
-            DeviceType.SMARTWATCH -> "Smartwatch"
-            DeviceType.WIRELESS_EARBUD -> "Earbuds"
-            DeviceType.NANO_EARPIECE -> "Tx Module"
-            DeviceType.MAGNETIC_ANOMALY -> "Magnetic Source"
-            else -> "Device"
+            DeviceType.SMARTPHONE -> "STATION"
+            DeviceType.SMARTWATCH -> "WEARABLE"
+            DeviceType.WIRELESS_EARBUD -> "AUDIO_LINK"
+            DeviceType.NANO_EARPIECE -> "COVERT_TX"
+            DeviceType.MAGNETIC_ANOMALY -> "FIELD_ANOMALY"
+            else -> "SIGNAL_NODE"
         }
 
-        return "$prefix$brandPrefix $typeSuffix"
+        return "$prefix$brandPrefix // $typeSuffix"
     }
 
     private fun calculateConfidence(type: DeviceType, detectedObject: DetectedObject, zone: DistanceZone): Int {

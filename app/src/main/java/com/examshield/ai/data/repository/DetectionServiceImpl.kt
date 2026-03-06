@@ -85,6 +85,7 @@ class DetectionServiceImpl(
             .buffer(capacity = 1024, onBufferOverflow = BufferOverflow.DROP_OLDEST) // Increased capacity for Overdrive
             .mapNotNull { detectedObj ->
                 val directives = neuralLink.directives.value
+                val isPrime = directives.aiNeuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY
                 
                 // Adaptive Purge (AI Directed)
                 if (Math.random() < 0.0005) sensorFusionEngine.purgeAll()
@@ -94,7 +95,7 @@ class DetectionServiceImpl(
                     return@mapNotNull null
                 }
 
-                // High-Speed Signal Fusion
+                // High-Speed Signal Fusion (Astra Prime)
                 val smoothedRssi = sensorFusionEngine.process(
                     detectedObj.macAddress, 
                     detectedObj.signalStrengthRssi,
@@ -106,45 +107,55 @@ class DetectionServiceImpl(
                 val baseClassification = classifier.classify(optimizedObj)
                 
                 val now = System.currentTimeMillis()
-                val timeSinceMagnet = now - lastMagneticAnomalyTime
+                val isMagneticNear = (now - lastMagneticAnomalyTime) < 3000 && baseClassification.estimatedDistanceMeters < 2.0
                 
-                var finalResult = baseClassification
+                // --- ASTRA PRIME: GLOBAL SYNERGY CORE ---
+                val synergyScore = sensorFusionEngine.calculateSynergyScore(
+                    macAddress = detectedObj.macAddress,
+                    visionConfirmed = false, // Placeholder: Link vision system
+                    magneticAnomalyNearby = isMagneticNear
+                )
                 
-                // Swarm & Magnet Fusion
                 val allyIntel = swarmIdentities[detectedObj.macAddress]
-                val stability = sensorFusionEngine.getSignalIntegrity(detectedObj.macAddress)
-                
                 var confidenceMod = 0
-                if (timeSinceMagnet < 3000 && baseClassification.estimatedDistanceMeters < 2.0) confidenceMod += 40
-                if (stability > 0.85) confidenceMod += 15
+                if (isMagneticNear) confidenceMod += 40
                 if (allyIntel != null) confidenceMod += 25
+                if (isPrime) confidenceMod += 15 // Prime efficiency boost
                 
                 val finalConfidence = (baseClassification.confidenceScore + confidenceMod).coerceIn(0, 100)
+                val isAutoLocked = isPrime && synergyScore > 80 && finalConfidence > 90
 
-                finalResult = finalResult.copy(
+                val finalResult = baseClassification.copy(
                     confidenceScore = finalConfidence,
-                    discoveryReason = "${finalResult.discoveryReason} [NEXUS_OVERDRIVE]${if (allyIntel != null) " [SWARM:${allyIntel.sourceNode}]" else ""}".trim()
+                    synergyScore = synergyScore,
+                    isNexusVerified = synergyScore > 70 || baseClassification.isNexusVerified,
+                    discoveryReason = buildString {
+                        append(baseClassification.discoveryReason)
+                        if (isAutoLocked) append(" [PRIME_LOCK]")
+                        else if (synergyScore > 75) append(" [NEXUS_SYNC]")
+                        if (allyIntel != null) append(" [SWARM:${allyIntel.sourceNode}]")
+                    }.trim()
                 )
 
-                // Update Sonar & Swarm
-                if (finalConfidence >= 40) {
+                // Update Sonar & Swarm with Prime Precision
+                if (finalConfidence >= 30) {
                     hapticSonarManager.updateSonarTarget(finalResult.distanceZone, finalConfidence, finalResult.isNexusVerified)
-                    if (finalConfidence >= 80) swarmMeshService.broadcastThreat(finalResult)
+                    if (finalConfidence >= 80 || isAutoLocked) {
+                        swarmMeshService.broadcastThreat(finalResult)
+                    }
                 }
 
-                // Range Peeking (AI Controlled)
-                val rangeLimit = if (directives.stealthPeekEnabled) _maxDetectionRange.value + 2.5f else _maxDetectionRange.value
+                // AI-Informed Range Peeking
+                val rangeLimit = if (directives.stealthPeekEnabled) _maxDetectionRange.value + 3.0f else _maxDetectionRange.value
                 if (finalResult.estimatedDistanceMeters > rangeLimit) return@mapNotNull null
 
                 finalResult
             }
             .filter { result ->
-                // Fast path filter for tactical devices
+                // Ultimate Precision Path: Show all categorized tech nodes
                 val type = result.deviceType
-                type == com.examshield.ai.domain.model.DeviceType.SMARTPHONE ||
-                type == com.examshield.ai.domain.model.DeviceType.SMARTWATCH ||
-                type == com.examshield.ai.domain.model.DeviceType.WIRELESS_EARBUD ||
-                type == com.examshield.ai.domain.model.DeviceType.NANO_EARPIECE
+                type != com.examshield.ai.domain.model.DeviceType.ROUTER_INFRASTRUCTURE &&
+                type != com.examshield.ai.domain.model.DeviceType.SUSPICIOUS_UNKNOWN
             }
             .flowOn(Dispatchers.Default)
     }

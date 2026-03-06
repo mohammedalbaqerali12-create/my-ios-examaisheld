@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 data class VisionTarget(
     val boundingBox: Rect,
     val trackingId: Int?,
-    val labels: List<String>
+    val labels: List<String>,
+    val brandHeuristic: String? = null
 )
 
 class TargetLockVisionAnalyzer : ImageAnalysis.Analyzer {
@@ -39,10 +40,18 @@ class TargetLockVisionAnalyzer : ImageAnalysis.Analyzer {
             objectDetector.process(image)
                 .addOnSuccessListener { detectedObjects ->
                     val targets = detectedObjects.map { obj ->
+                        val objLabels = obj.labels.map { it.text }
+                        val brand = when {
+                            objLabels.any { it.contains("Mobile phone", true) || it.contains("Phone", true) } -> "MOBILE_COMM_DEVICE"
+                            objLabels.any { it.contains("Watch", true) || it.contains("Wearable", true) } -> "WEARABLE_STATION"
+                            objLabels.any { it.contains("Headphones", true) || it.contains("Earbuds", true) } -> "AUDIO_TRANSCEIVER"
+                            else -> null
+                        }
                         VisionTarget(
                             boundingBox = obj.boundingBox,
                             trackingId = obj.trackingId,
-                            labels = obj.labels.map { it.text }
+                            labels = objLabels,
+                            brandHeuristic = brand
                         )
                     }
                     _detectedTargets.value = targets

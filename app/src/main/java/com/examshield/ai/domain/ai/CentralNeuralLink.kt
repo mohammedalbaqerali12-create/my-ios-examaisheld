@@ -29,7 +29,8 @@ class CentralNeuralLink @Inject constructor() {
         EVOLVING,   // AI is recalculating weights
         CRITICAL,   // AI has locked onto a persistent threat
         STEALTH,    // AI is minimizing signal footprint
-        OVERDRIVE   // AI is maximizing CPU and signal throughput
+        OVERDRIVE,  // AI is maximizing CPU and signal throughput
+        PRIME_SYNERGY // ASTRA PRIME: Universal System Synchronization
     }
 
     private val _directives = MutableStateFlow(SystemDirectives())
@@ -48,8 +49,16 @@ class CentralNeuralLink @Inject constructor() {
     fun setNeuralState(state: NeuralState) {
         _directives.value = _directives.value.copy(
             aiNeuralState = state,
-            refreshRateHz = if (state == NeuralState.OVERDRIVE) 60 else 30,
-            scanningSpeedMultiplier = if (state == NeuralState.OVERDRIVE) 2.0f else 1.0f
+            refreshRateHz = when(state) {
+                NeuralState.OVERDRIVE -> 60
+                NeuralState.PRIME_SYNERGY -> 90 // Ultra-high refresh for Prime
+                else -> 30
+            },
+            scanningSpeedMultiplier = when(state) {
+                NeuralState.OVERDRIVE -> 2.0f
+                NeuralState.PRIME_SYNERGY -> 3.0f // Maximum scan velocity
+                else -> 1.0f
+            }
         )
     }
 }

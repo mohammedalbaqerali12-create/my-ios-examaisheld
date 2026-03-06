@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -270,6 +273,19 @@ fun TacticalStatusPanel(isScanning: Boolean, threatCount: Int, neuralState: Cent
                      Text(neuralState.name, fontSize = 16.sp, fontWeight = FontWeight.Black, color = neuralColor, letterSpacing = 2.sp)
                  }
                  Spacer(modifier = Modifier.weight(1f))
+                 
+                 // Real-time Telemetry Stream
+                 Column(horizontalAlignment = Alignment.End) {
+                     val telemetry = when(neuralState) {
+                         CentralNeuralLink.NeuralState.PRIME_SYNERGY -> "NEXUS_SYNC_ACTIVE // 90Hz"
+                         CentralNeuralLink.NeuralState.OVERDRIVE -> "OVERCLOCK_ACTIVE // 60Hz"
+                         else -> "LINK_ESTABLISHED // 30Hz"
+                     }
+                     Text(telemetry, fontSize = 8.sp, color = neuralColor.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace)
+                     Text("LATENCY: <1ms", fontSize = 7.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
+                 }
+                 
+                 Spacer(modifier = Modifier.width(12.dp))
                  IconButton(onClick = onRangeClick, modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)) {
                      Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                  }
@@ -285,51 +301,107 @@ fun TacticalThreatPod(threat: ClassificationResult, onClick: () -> Unit, onFrien
         RiskLevel.LEVEL_3_PROXIMITY_MATCH -> com.examshield.ai.ui.theme.ThreatOrange
         else -> com.examshield.ai.ui.theme.NeonCyan
     }
+    
+    val isNexusLocked = threat.discoveryReason.contains("PRIME_LOCK") || threat.synergyScore > 85
 
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D0D)),
-        shape = RoundedCornerShape(2.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor.copy(alpha = 0.4f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .shadow(if (isNexusLocked) 10.dp else 0.dp, shape = RoundedCornerShape(4.dp), ambientColor = borderColor, spotColor = borderColor),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A).copy(alpha = 0.9f)),
+        shape = RoundedCornerShape(4.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isNexusLocked) 2.dp else 1.dp,
+            color = if (isNexusLocked) borderColor else borderColor.copy(alpha = 0.3f)
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // TACTICAL GLYPH
-                Box(modifier = Modifier.size(45.dp).background(borderColor.copy(alpha = 0.1f)).border(1.dp, borderColor.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
-                    Text(threat.rawObject.macAddress.takeLast(4), color = borderColor, fontSize = 10.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-                    // Decorative corners
-                    Box(modifier = Modifier.align(Alignment.TopStart).size(6.dp).border(1.dp, borderColor, RoundedCornerShape(topStart = 2.dp)))
+                // TACTICAL GLYPH (PRIME ENHANCED)
+                Box(modifier = Modifier
+                    .size(50.dp)
+                    .background(borderColor.copy(alpha = 0.1f))
+                    .border(1.dp, borderColor.copy(alpha = 0.4f), RoundedCornerShape(4.dp)), 
+                    contentAlignment = Alignment.Center) {
+                    
+                    Text(
+                        text = threat.rawObject.macAddress.takeLast(4),
+                        color = borderColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    
+                    if (isNexusLocked) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = borderColor,
+                            modifier = Modifier.align(Alignment.BottomEnd).size(14.dp).padding(2.dp)
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))
                 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(threat.deviceType.name, fontWeight = FontWeight.Black, fontSize = 15.sp, color = Color.White)
-                    Text(threat.discoveryReason, fontSize = 9.sp, color = Color.Gray, maxLines = 1)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = threat.rawObject.name ?: "UNKNOWN_STATION",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        if (isNexusLocked) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("PRIME", color = borderColor, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(borderColor.copy(alpha = 0.2f)).padding(horizontal = 4.dp))
+                        }
+                    }
+                    Text(
+                        text = "${threat.discoveryReason} // SNR:${threat.rawObject.signalStrengthRssi}dBm",
+                        fontSize = 8.sp,
+                        color = Color.Cyan.copy(alpha = 0.5f),
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("${threat.confidenceScore}%", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = borderColor)
-                    Text("MATCH", fontSize = 7.sp, color = borderColor.copy(alpha = 0.7f), fontWeight = FontWeight.Black)
+                    Text("${threat.synergyScore}%", fontWeight = FontWeight.Black, fontSize = 20.sp, color = borderColor)
+                    Text("SYNERGY", fontSize = 7.sp, color = borderColor.copy(alpha = 0.6f), fontWeight = FontWeight.Black)
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // ANALYTICS PREVIEW
-            Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color.Black).alpha(0.6f)) {
+            // NEURAL FLOW VISUALIZER
+            Box(modifier = Modifier.fillMaxWidth().height(30.dp).background(Color.Black).alpha(0.7f).border(0.5.dp, borderColor.copy(alpha = 0.2f))) {
                 SpectrumWaterfallRenderer(currentRssi = threat.rawObject.signalStrengthRssi, baseColor = borderColor, modifier = Modifier.fillMaxSize())
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onFriendly(threat) }, modifier = Modifier.weight(1f).height(32.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray), shape = RoundedCornerShape(2.dp)) {
-                    Text("SAFE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = { onFriendly(threat) }, 
+                    modifier = Modifier.weight(1f).height(36.dp), 
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.05f)), 
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text("IGNOR_SIG", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
                 }
-                Button(onClick = { onCheating(threat) }, modifier = Modifier.weight(1f).height(32.dp), colors = ButtonDefaults.buttonColors(containerColor = com.examshield.ai.ui.theme.ThreatRed), shape = RoundedCornerShape(2.dp)) {
-                    Text("MARK_THREAT", fontSize = 10.sp, fontWeight = FontWeight.Black)
+                Button(
+                    onClick = { onCheating(threat) }, 
+                    modifier = Modifier.weight(1f).height(36.dp), 
+                    colors = ButtonDefaults.buttonColors(containerColor = borderColor.copy(alpha = 0.2f)), 
+                    shape = RoundedCornerShape(2.dp),
+                    border = BorderStroke(1.dp, borderColor.copy(alpha = 0.5f))
+                ) {
+                    Text("LOCK_THREAT", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White)
                 }
             }
         }
