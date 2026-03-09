@@ -12,3 +12,8 @@ val ThreatOrange = Color(0xFFF57C00) // Tactical orange
 val CardGlow = Color(0xFF0D47A1) // Deep tactical blue glow
 val GlassSurface = Color(0x1A00D4FF) // 10% opacity for a subtle glass effect
 val AmberWarning = Color(0xFFFFB300) // Professional alert amber
+
+// ASTRA PRIME EXTENSIONS
+val PrimeGold = Color(0xFFFFD700) // Excellence and precision
+val SynchroBlue = Color(0xFF00FBFF) // High-frequency synchronization
+val NeuralViolet = Color(0xFF9D00FF) // Deep neural processing

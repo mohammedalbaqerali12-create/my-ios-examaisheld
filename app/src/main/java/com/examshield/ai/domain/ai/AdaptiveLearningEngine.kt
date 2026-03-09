@@ -211,6 +211,7 @@ class AdaptiveLearningEngine @Inject constructor(
     private fun evolveSystem(variance: Double, stability: Float, hasCheatingSignal: Boolean) {
         neuralLink.mutate { current ->
             val newState = when {
+                hasCheatingSignal && stability > 0.8f -> CentralNeuralLink.NeuralState.PRIME_SYNERGY
                 hasCheatingSignal -> CentralNeuralLink.NeuralState.OVERDRIVE
                 variance > 50.0 -> CentralNeuralLink.NeuralState.EVOLVING
                 stability < 0.3f -> CentralNeuralLink.NeuralState.STEALTH
@@ -218,14 +219,29 @@ class AdaptiveLearningEngine @Inject constructor(
                 else -> current.aiNeuralState
             }
 
-            val targetProcessNoise = if (variance > 30.0) 0.025 else 0.012
-            val scanningMultiplier = if (newState == CentralNeuralLink.NeuralState.OVERDRIVE) 2.5f else 1.0f
+            val targetProcessNoise = when(newState) {
+                CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 0.005
+                CentralNeuralLink.NeuralState.OVERDRIVE -> 0.025
+                else -> 0.012
+            }
+            
+            val scanningMultiplier = when(newState) {
+                CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 5.0f
+                CentralNeuralLink.NeuralState.OVERDRIVE -> 2.5f
+                else -> 1.0f
+            }
 
             current.copy(
                 aiNeuralState = newState,
                 kalmanProcessNoise = targetProcessNoise,
                 scanningSpeedMultiplier = scanningMultiplier,
-                refreshRateHz = if (newState == CentralNeuralLink.NeuralState.OVERDRIVE) 60 else 30
+                refreshRateHz = when(newState) {
+                    CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 120
+                    CentralNeuralLink.NeuralState.OVERDRIVE -> 60
+                    else -> 30
+                },
+                spectralSensitivity = if (newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 2.5f else 1.0f,
+                temporalSyncActive = newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY
             )
         }
     }

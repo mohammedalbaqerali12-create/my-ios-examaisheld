@@ -44,7 +44,10 @@ class TargetLockVisionAnalyzer : ImageAnalysis.Analyzer {
                         val brand = when {
                             objLabels.any { it.contains("Mobile phone", true) || it.contains("Phone", true) } -> "MOBILE_COMM_DEVICE"
                             objLabels.any { it.contains("Watch", true) || it.contains("Wearable", true) } -> "WEARABLE_STATION"
-                            objLabels.any { it.contains("Headphones", true) || it.contains("Earbuds", true) } -> "AUDIO_TRANSCEIVER"
+                            objLabels.any { it.contains("Headphones", true) || it.contains("Earbuds", true) } || 
+                            objLabels.any { it.contains("Audio", true) } -> "AUDIO_TRANSCEIVER"
+                            objLabels.any { it.contains("Tablet", true) || it.contains("Computer", true) } -> "COMPUTING_TERMINAL"
+                            objLabels.any { it.contains("Hardware", true) || it.contains("Component", true) } -> "ELECTRONIC_CORE"
                             else -> null
                         }
                         VisionTarget(

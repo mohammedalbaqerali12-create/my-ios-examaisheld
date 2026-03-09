@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat
 import com.examshield.ai.localization.*
 import com.examshield.ai.ui.visualization.*
 import com.examshield.ai.vision.TargetLockVisionAnalyzer
+import com.examshield.ai.domain.ai.CentralNeuralLink
 
 @Composable
 fun SignalFinderScreen(
@@ -46,6 +47,7 @@ fun SignalFinderScreen(
     val confidence by viewModel.localizationConfidence.collectAsState()
     val errorRadius by viewModel.errorRadius.collectAsState()
     val locState by viewModel.localizationState.collectAsState()
+    val aiNeuralState by viewModel.aiNeuralState.collectAsState()
     
     val azureAzimuth by viewModel.azimuth.collectAsState()
     val azurePitch by viewModel.pitch.collectAsState()
@@ -67,12 +69,20 @@ fun SignalFinderScreen(
     val visionAnalyzer = remember { TargetLockVisionAnalyzer() }
     val visionTargets by visionAnalyzer.detectedTargets.collectAsState()
 
+    val infiniteTransition = rememberInfiniteTransition()
+    val primeGlow by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Reverse)
+    )
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // LAYER 0: STARFIELD PARALLAX
         StarfieldBackground()
         
         // LAYER 1: CINEMATIC GLOW
-        Box(modifier = Modifier.fillMaxSize().background(Brush.radialGradient(0.0f to Color(0xFF00E5FF).copy(alpha = 0.05f), 1.0f to Color.Transparent)))
+        val glowColor = if (aiNeuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) com.examshield.ai.ui.theme.PrimeGold else com.examshield.ai.ui.theme.NeonCyan
+        Box(modifier = Modifier.fillMaxSize().background(Brush.radialGradient(0.0f to glowColor.copy(alpha = 0.08f), 1.0f to Color.Transparent)))
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -81,15 +91,16 @@ fun SignalFinderScreen(
             // EXTRATERRESTRIAL HEADER
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
                 Text(
-                    text = "TARGET_ACQUISITION // NEURAL_LINK_v4",
-                    color = Color.Cyan,
-                    fontSize = 10.sp,
+                    text = if (aiNeuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) "ASTRA_PRIME // SYNC_LOCK_v5.2" else "TARGET_ACQUISITION // NEURAL_LINK_v4",
+                    color = glowColor,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 4.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.alpha(0.7f + 0.3f * primeGlow)
                 )
                 Text(
-                    text = "MAC: ${macAddress.uppercase()}",
+                    text = "HARDWARE_ID: ${macAddress.uppercase()}",
                     color = Color.White.copy(alpha = 0.4f),
                     fontSize = 8.sp,
                     fontFamily = FontFamily.Monospace
@@ -103,9 +114,10 @@ fun SignalFinderScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(2.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.1f))
-                    .background(Color.Black.copy(alpha = 0.3f))
+                    .clip(RoundedCornerShape(4.dp))
+                    .border(1.dp, glowColor.copy(alpha = 0.15f))
+                    .border(if (aiNeuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 3.dp else 0.dp, com.examshield.ai.ui.theme.PrimeGold.copy(alpha = 0.1f * primeGlow), RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.4f))
             ) {
                 if (isArMode) {
                     CameraPreview(modifier = Modifier.fillMaxSize(), analyzer = visionAnalyzer)
@@ -117,7 +129,8 @@ fun SignalFinderScreen(
                         currentPitch = azurePitch,
                         deviceType = targetDevice?.deviceType?.name ?: "UNKNOWN",
                         rssi = targetDevice?.rawObject?.signalStrengthRssi ?: -100,
-                        visionTargets = visionTargets
+                        visionTargets = visionTargets,
+                        neuralState = aiNeuralState
                     )
                 } else {
                     TacticalRadarOverlay(
@@ -144,6 +157,7 @@ fun SignalFinderScreen(
                 errorRadius = errorRadius,
                 locState = locState,
                 isArMode = isArMode,
+                neuralState = aiNeuralState,
                 onToggleWalkMode = {
                     viewModel.localizationController.startWalkSampling()
                     com.examshield.ai.util.VibrationHelper.vibrateShort()
@@ -167,18 +181,21 @@ fun OperativeDashboard(
     errorRadius: Float,
     locState: LocalizationState,
     isArMode: Boolean,
+    neuralState: CentralNeuralLink.NeuralState,
     onToggleWalkMode: () -> Unit,
     onToggleArMode: () -> Unit
 ) {
+    val layoutColor = if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) com.examshield.ai.ui.theme.PrimeGold else com.examshield.ai.ui.theme.NeonCyan
+    
     Card(
-        modifier = Modifier.fillMaxWidth().border(1.dp, Color.Cyan.copy(alpha = 0.1f), RoundedCornerShape(2.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f)),
-        shape = RoundedCornerShape(2.dp)
+        modifier = Modifier.fillMaxWidth().border(1.dp, layoutColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.85f)),
+        shape = RoundedCornerShape(4.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    val confColor = if (confidence > 80) Color(0xFF00E676) else if (confidence > 40) Color(0xFF00E5FF) else Color(0xFFFF5252)
+                    val confColor = if (confidence > 85) Color(0xFF00E676) else if (confidence > 50) layoutColor else com.examshield.ai.ui.theme.ThreatRed
                     Text("NEURAL_CONFIDENCE", color = Color.Gray, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text("${confidence}", color = confColor, fontWeight = FontWeight.Black, fontSize = 42.sp, fontFamily = FontFamily.Monospace)
@@ -186,31 +203,31 @@ fun OperativeDashboard(
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("ERROR_MARGIN", color = Color.Gray, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
+                    Text("PRECISION_MARGIN", color = Color.Gray, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 2.sp)
                     Text("±${"%.2f".format(errorRadius)}M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, fontFamily = FontFamily.Monospace)
                     
                     val statusText = when(locState) {
-                        LocalizationState.WALK_SAMPLING_MODE -> "KINETIC_SYNC"
-                        LocalizationState.TRACKING_MOTION -> "POINT_ACQUIRE"
-                        else -> "IDLE_LINK"
+                        LocalizationState.WALK_SAMPLING_MODE -> "KINETIC_STREAM"
+                        LocalizationState.TRACKING_MOTION -> "ACTIVE_LOCK"
+                        else -> "SYSTEM_LINK"
                     }
-                    Text(statusText, color = Color.Cyan.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Black)
+                    Text(statusText, color = layoutColor.copy(alpha = 0.6f), fontSize = 8.sp, fontWeight = FontWeight.Black)
                 }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
             // OVERDRIVE AR TRIGGER
-            val isReady = confidence > 30
+            val isReady = confidence > 25
             Button(
                 onClick = onToggleArMode,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (isArMode) Color.Red.copy(0.15f) else if (isReady) Color.Cyan.copy(0.05f) else Color.Transparent),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isArMode) Color.Red.copy(0.15f) else if (isReady) layoutColor.copy(0.08f) else Color.Transparent),
                 shape = RoundedCornerShape(2.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (isArMode) Color.Red else if (isReady) Color.Cyan else Color.White.copy(0.1f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isArMode) Color.Red else if (isReady) layoutColor else Color.White.copy(0.1f))
             ) {
                 Text(
-                    if (isArMode) "DISCONNECT_AR_HUD" else if (isReady) "ENGAGE_INTERSTELLAR_HUD" else "WAITING_FOR_NEURAL_FIX",
+                    if (isArMode) "DISCONNECT_AR_HUD" else if (isReady) "ENGAGE_ASTRA_PRIME_HUD" else "WAITING_FOR_NEURAL_LINK",
                     color = if (isReady || isArMode) Color.White else Color.Gray,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,
@@ -227,8 +244,8 @@ fun OperativeDashboard(
                     onClick = onToggleWalkMode,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(2.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else Color.Cyan.copy(0.3f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else Color.Cyan)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else layoutColor.copy(0.3f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = if (locState == LocalizationState.WALK_SAMPLING_MODE) Color(0xFF00E676) else layoutColor)
                 ) {
                     Text(
                         if (locState == LocalizationState.WALK_SAMPLING_MODE) "KINETIC_SYNC_ACTIVE" else "START_KINETIC_MAPPING",

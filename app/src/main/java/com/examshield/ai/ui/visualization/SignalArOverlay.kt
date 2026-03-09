@@ -23,6 +23,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 import com.examshield.ai.vision.VisionTarget
+import com.examshield.ai.domain.ai.CentralNeuralLink
 
 @Composable
 fun SignalArOverlay(
@@ -33,28 +34,55 @@ fun SignalArOverlay(
     currentPitch: Float, // In degrees (Vertical tilt)
     deviceType: String = "UNKNOWN",
     rssi: Int = -100,
-    visionTargets: List<VisionTarget> = emptyList()
+    visionTargets: List<VisionTarget> = emptyList(),
+    neuralState: CentralNeuralLink.NeuralState = CentralNeuralLink.NeuralState.STABLE
 ) {
     val textMeasurer = rememberTextMeasurer()
     val infiniteTransition = rememberInfiniteTransition()
+    
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 1500 else 4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
+        )
+    )
+    
+    val pulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    val primeGlow by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
         )
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
         
+        // --- LAYER 0: HUD DATALINK (Top Right) ---
+        drawDatalinkModule(textMeasurer, neuralState, size.width)
+
         // --- LAYER 1: INTERSTELLAR VISION GRID ---
         val imgWidth = 480f
         val imgHeight = 640f
         
         for (visionObj in visionTargets) {
             val isPerson = visionObj.labels.any { it.contains("Fashion", ignoreCase = true) || it.contains("Person", ignoreCase = true) || it.contains("Clothing", ignoreCase = true) }
-            val boxColor = if (isPerson) Color(0xFFFF5252) else Color(0xFF00E5FF)
+            val boxColor = when {
+                isPerson -> com.examshield.ai.ui.theme.ThreatRed
+                neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY -> com.examshield.ai.ui.theme.PrimeGold
+                else -> com.examshield.ai.ui.theme.NeonCyan
+            }
             
             val left = (visionObj.boundingBox.left / imgWidth) * size.width
             val top = (visionObj.boundingBox.top / imgHeight) * size.height
@@ -63,72 +91,58 @@ fun SignalArOverlay(
             
             val boxWidth = right - left
             val boxHeight = bottom - top
-
-            // NEURAL DATA STREAM (Faint vertical lines inside box)
-            if (!isPerson) {
-                val streamPulse = ((System.currentTimeMillis() % 1000) / 1000f)
-                drawLine(
-                    color = boxColor.copy(alpha = 0.1f * (1f - streamPulse)),
-                    start = Offset(left + boxWidth * 0.2f, top),
-                    end = Offset(left + boxWidth * 0.2f, bottom),
-                    strokeWidth = 1.dp.toPx()
-                )
-                drawLine(
-                    color = boxColor.copy(alpha = 0.1f * streamPulse),
-                    start = Offset(left + boxWidth * 0.8f, top),
-                    end = Offset(left + boxWidth * 0.8f, bottom),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-
-            // INTERSTELLAR TARGETING BRACKETS (Instead of a simple box)
-            val bracketLen = (boxWidth * 0.2f).coerceAtMost(20.dp.toPx())
-            val stroke = 2.dp.toPx()
             
-            // Top Left
-            drawLine(boxColor, Offset(left, top), Offset(left + bracketLen, top), stroke)
-            drawLine(boxColor, Offset(left, top), Offset(left, top + bracketLen), stroke)
-            // Top Right
-            drawLine(boxColor, Offset(right, top), Offset(right - bracketLen, top), stroke)
-            drawLine(boxColor, Offset(right, top), Offset(right, top + bracketLen), stroke)
-            // Bottom Left
-            drawLine(boxColor, Offset(left, bottom), Offset(left + bracketLen, bottom), stroke)
-            drawLine(boxColor, Offset(left, bottom), Offset(left, bottom - bracketLen), stroke)
-            // Bottom Right
-            drawLine(boxColor, Offset(right, bottom), Offset(right - bracketLen, bottom), stroke)
-            drawLine(boxColor, Offset(right, bottom), Offset(right, bottom - bracketLen), stroke)
+            // SPECTRAL SCANLINE (Inside Box)
+            val scanlineY = top + (boxHeight * ((System.currentTimeMillis() % 2000) / 2000f))
+            drawLine(
+                color = boxColor.copy(alpha = 0.4f),
+                start = Offset(left, scanlineY),
+                end = Offset(right, scanlineY),
+                strokeWidth = 1.dp.toPx()
+            )
 
-            // DYNAMIC BRAND RESOLUTION (Interstellar Edition)
-            val brandLabel = when {
-                isPerson -> "NEURAL_SIGNATURE: BIOMETRIC_DETECTED"
-                visionObj.brandHeuristic != null -> {
-                    // Correlate with signal data
-                    val signalBrand = deviceType.uppercase()
-                    when {
-                        signalBrand.contains("SAMSUNG") -> "SAMSUNG_UNIFIED // NODE_SECURED"
-                        signalBrand.contains("APPLE") || signalBrand.contains("IPHONE") -> "APPLE_INTERCEPT // ENCRYPTED_LINK"
-                        signalBrand.contains("GOOGLE") || signalBrand.contains("PIXEL") -> "PIXEL_TERMINAL // SYNC_ACTIVE"
-                        signalBrand.contains("HUAWEI") -> "RELIANCE_NODE // HUAWEI_DETECTED"
-                        else -> "${visionObj.brandHeuristic} // UNIDENTIFIED_MAKE"
-                    }
-                }
-                else -> "INTERSTELLAR_OBJECT // ID:${visionObj.trackingId ?: 0}"
+            // INTERSTELLAR TARGETING BRACKETS
+            val bracketLen = (boxWidth * 0.25f).coerceAtMost(25.dp.toPx())
+            val stroke = (if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 3.dp else 2.dp).toPx()
+            
+            // Brackets with slight glow if PRIME
+            val finalBoxColor = if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) {
+                boxColor.copy(alpha = 0.7f + (0.3f * primeGlow))
+            } else boxColor
+
+            // Top Left
+            drawLine(finalBoxColor, Offset(left, top), Offset(left + bracketLen, top), stroke)
+            drawLine(finalBoxColor, Offset(left, top), Offset(left, top + bracketLen), stroke)
+            // Top Right
+            drawLine(finalBoxColor, Offset(right, top), Offset(right - bracketLen, top), stroke)
+            drawLine(finalBoxColor, Offset(right, top), Offset(right, top + bracketLen), stroke)
+            // Bottom Left
+            drawLine(finalBoxColor, Offset(left, bottom), Offset(left + bracketLen, bottom), stroke)
+            drawLine(finalBoxColor, Offset(left, bottom), Offset(left, bottom - bracketLen), stroke)
+            // Bottom Right
+            drawLine(finalBoxColor, Offset(right, bottom), Offset(right - bracketLen, bottom), stroke)
+            drawLine(finalBoxColor, Offset(right, bottom), Offset(right, bottom - bracketLen), stroke)
+
+            // DYNAMIC IDENTITY RESOLUTION
+            val idLabel = when {
+                isPerson -> "BIOMETRIC_ID: POSITIVE_MATCH"
+                visionObj.brandHeuristic != null -> "NEXUS_QUERY: ${visionObj.brandHeuristic}"
+                else -> "SCANNING_OBJECT // ID_PENDING"
             }
 
             val textResult = textMeasurer.measure(
-                text = brandLabel,
+                text = idLabel,
                 style = androidx.compose.ui.text.TextStyle(
-                    color = boxColor, fontSize = 7.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp
+                    color = boxColor, fontSize = 8.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp
                 )
             )
             
-            // Label Background (Cinematic Overlay)
             drawRect(
-                color = Color.Black.copy(alpha = 0.6f),
-                topLeft = Offset(left, top - textResult.size.height - 4.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size(textResult.size.width.toFloat() + 8.dp.toPx(), textResult.size.height.toFloat() + 4.dp.toPx())
+                color = Color.Black.copy(alpha = 0.7f),
+                topLeft = Offset(left, top - textResult.size.height - 6.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(textResult.size.width.toFloat() + 10.dp.toPx(), textResult.size.height.toFloat() + 4.dp.toPx())
             )
-            drawText(textResult, topLeft = Offset(left + 4.dp.toPx(), top - textResult.size.height - 2.dp.toPx()))
+            drawText(textResult, topLeft = Offset(left + 5.dp.toPx(), top - textResult.size.height - 4.dp.toPx()))
         }
 
         val target = devicePos ?: return@Canvas
@@ -147,8 +161,8 @@ fun SignalArOverlay(
         relativeAzimuth = relativeAngleWrap(relativeAzimuth)
         
         val distance = Math.sqrt(dx * dx + dy * dy.toDouble())
-        val hFov = 60f
-        val vFov = 90f
+        val hFov = 65f
+        val vFov = 95f
         val centerX = size.width / 2
         val centerY = size.height / 2
 
@@ -157,110 +171,134 @@ fun SignalArOverlay(
             val normalizedPitch = currentPitch + 90f
             val screenY = centerY + (normalizedPitch / (vFov / 2)) * (size.height / 2)
 
-            val scale = (1.0 + (5.0 / distance.coerceAtLeast(0.5))).coerceIn(1.0, 5.0).toFloat()
-            val baseMarkerSize = 40.dp.toPx() * scale
-            val alpha = (1.0 - (distance / 12.0).coerceIn(0.0, 0.8)).toFloat()
+            val scale = (1.0 + (6.0 / distance.coerceAtLeast(0.5))).coerceIn(1.0, 6.0).toFloat()
+            val baseMarkerSize = 45.dp.toPx() * scale
+            val alpha = (1.0 - (distance / 15.0).coerceIn(0.0, 0.85)).toFloat()
 
             val isFused = deviceType.startsWith("FUSED_")
             val cleanDeviceType = deviceType.replace("FUSED_", "")
             
             val signatureColor = when {
-                isFused -> Color(0xFFFF1744)
-                cleanDeviceType.contains("PHONE") || cleanDeviceType.contains("WATCH") -> Color(0xFFBB86FC) // Neon Purple for Tech
-                else -> Color(0xFF00E5FF)
+                neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY -> com.examshield.ai.ui.theme.PrimeGold
+                isFused -> com.examshield.ai.ui.theme.ThreatRed
+                cleanDeviceType.contains("PHONE") -> com.examshield.ai.ui.theme.NeuralViolet
+                else -> com.examshield.ai.ui.theme.NeonCyan
             }
             
             withTransform({
                 translate(left = screenX, top = screenY)
                 rotate(degrees = rotation)
             }) {
-                // Outer Interstellar Ring
-                drawArc(
-                    color = signatureColor.copy(alpha = alpha),
-                    startAngle = 0f, sweepAngle = 45f, useCenter = false,
-                    style = Stroke(width = 3.dp.toPx()),
-                    topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
-                    size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
-                )
-                drawArc(
-                    color = signatureColor.copy(alpha = alpha),
-                    startAngle = 120f, sweepAngle = 45f, useCenter = false,
-                    style = Stroke(width = 3.dp.toPx()),
-                    topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
-                    size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
-                )
-                drawArc(
-                    color = signatureColor.copy(alpha = alpha),
-                    startAngle = 240f, sweepAngle = 45f, useCenter = false,
-                    style = Stroke(width = 3.dp.toPx()),
-                    topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
-                    size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
-                )
+                // Outer Interstellar Ring (Segmented)
+                for (i in 0 until 4) {
+                    drawArc(
+                        color = signatureColor.copy(alpha = alpha * pulse),
+                        startAngle = i * 90f + 10f, sweepAngle = 70f, useCenter = false,
+                        style = Stroke(width = 2.dp.toPx()),
+                        topLeft = Offset(-baseMarkerSize, -baseMarkerSize),
+                        size = androidx.compose.ui.geometry.Size(baseMarkerSize * 2, baseMarkerSize * 2)
+                    )
+                }
+                
+                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) {
+                    // Prime Synergy Multi-Hex Reticle
+                     drawArc(
+                        color = com.examshield.ai.ui.theme.SynchroBlue.copy(alpha = alpha * primeGlow),
+                        startAngle = 45f, sweepAngle = 270f, useCenter = false,
+                        style = Stroke(width = 1.dp.toPx()),
+                        topLeft = Offset(-baseMarkerSize * 0.8f, -baseMarkerSize * 0.8f),
+                        size = androidx.compose.ui.geometry.Size(baseMarkerSize * 1.6f, baseMarkerSize * 1.6f)
+                    )
+                }
             }
 
-            // Inner Pulsing Compass
+            // Inner Stabilization Circle
             drawCircle(
-                color = signatureColor.copy(alpha = alpha * 0.4f),
-                radius = baseMarkerSize * 0.6f,
+                color = signatureColor.copy(alpha = alpha * 0.3f),
+                radius = baseMarkerSize * 0.5f,
                 center = Offset(screenX, screenY),
                 style = Stroke(width = 1.dp.toPx())
             )
             
-            // Surgical Deadzone
-            drawCircle(color = Color.White.copy(alpha = alpha), radius = 3.dp.toPx(), center = Offset(screenX, screenY))
+            // Surgical Impact point
+            drawCircle(color = Color.White.copy(alpha = alpha), radius = 4.dp.toPx(), center = Offset(screenX, screenY))
 
-            // Interstellar Telemetry Text
+            // DYNAMIC TELEMETRY HUD (Side of Reticle)
             val telemetry = buildString {
-                append("NODE: $cleanDeviceType\n")
-                append("DIST: ${"%.2f".format(distance)}M\n")
-                append("AZIM: ${"%.1f".format(relativeAzimuth)}°")
-                if (isFused) append("\nSTATUS: MAG_FUSION_LOCK")
+                append("NODE_TYPE_ID: $cleanDeviceType\n")
+                append("RANGE_VECT: ${"%.2f".format(distance)}m\n")
+                append("AZIMUTH_OFF: ${"%.1f".format(relativeAzimuth)}°\n")
+                append("SIG_POWER: ${rssi}dBm\n")
+                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) append("PRIME_LOCK_ACTIVE")
             }
             
             val textLayoutResult = textMeasurer.measure(
                 text = telemetry,
                 style = androidx.compose.ui.text.TextStyle(
                     color = signatureColor,
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 1.sp,
-                    background = Color.Black.copy(alpha = 0.5f)
+                    background = Color.Black.copy(alpha = 0.6f)
                 )
             )
             drawText(
                 textLayoutResult = textLayoutResult,
-                topLeft = Offset(screenX + baseMarkerSize * 1.3f, screenY - textLayoutResult.size.height / 2)
+                topLeft = Offset(screenX + baseMarkerSize + 10.dp.toPx(), screenY - textLayoutResult.size.height / 2)
             )
 
-            if (distance < 2.0) {
-                 val flash = if (System.currentTimeMillis() % 600 > 300) Color.Red else Color.Transparent
+            // PROXIMITY ALERT BLOOM
+            if (distance < 1.5) {
+                 val warningAlpha = if (System.currentTimeMillis() % 400 > 200) 1f else 0.2f
+                 drawCircle(
+                     color = com.examshield.ai.ui.theme.ThreatRed.copy(alpha = 0.1f * warningAlpha),
+                     radius = baseMarkerSize * 1.5f,
+                     center = Offset(screenX, screenY)
+                 )
+                 
                  val warningText = textMeasurer.measure(
-                     text = "⚠️ KINETIC_PROXIMITY_ALERT ⚠️",
+                     text = "⚠️ CRITICAL_PROXIMITY_VIOLATION ⚠️",
                      style = androidx.compose.ui.text.TextStyle(
-                         color = flash, fontSize = 14.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.7f)
+                         color = com.examshield.ai.ui.theme.ThreatRed, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.8f)
                      )
                  )
                  drawText(
                      textLayoutResult = warningText,
-                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize * 2.2f)
+                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize - 30.dp.toPx())
                  )
             }
 
         } else {
-            // OFF-SCREEN TELEMETRY ARROWS
+            // OFF-SCREEN DIRECTIONAL NAVIGATION
+            val arrowColor = if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) com.examshield.ai.ui.theme.PrimeGold else com.examshield.ai.ui.theme.AmberWarning
             val arrowY = centerY
-            val arrowColor = Color(0xFFFFD600)
+            val arrowPadding = 40.dp.toPx()
+            
             if (relativeAzimuth > 0) {
-                drawLine(arrowColor, Offset(size.width - 40.dp.toPx(), arrowY), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
-                drawLine(arrowColor, Offset(size.width - 25.dp.toPx(), arrowY - 10.dp.toPx()), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
-                drawLine(arrowColor, Offset(size.width - 25.dp.toPx(), arrowY + 10.dp.toPx()), Offset(size.width - 15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawOffScreenIndicator(this, size.width - arrowPadding, arrowY, arrowColor, true)
             } else {
-                drawLine(arrowColor, Offset(40.dp.toPx(), arrowY), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
-                drawLine(arrowColor, Offset(25.dp.toPx(), arrowY - 10.dp.toPx()), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
-                drawLine(arrowColor, Offset(25.dp.toPx(), arrowY + 10.dp.toPx()), Offset(15.dp.toPx(), arrowY), 3.dp.toPx())
+                drawOffScreenIndicator(this, arrowPadding, arrowY, arrowColor, false)
             }
         }
+    }
+}
+
+private fun drawDatalinkModule(textMeasurer: androidx.compose.ui.text.TextMeasurer, state: CentralNeuralLink.NeuralState, screenWidth: Float) {
+    // Top right telemetry box
+}
+
+private fun drawOffScreenIndicator(scope: androidx.compose.ui.graphics.drawscope.DrawScope, x: Float, y: Float, color: Color, isRight: Boolean) {
+    with(scope) {
+        val size = 20.dp.toPx()
+        val direction = if (isRight) 1f else -1f
+        
+        drawLine(color, Offset(x, y), Offset(x - direction * size, y - size / 2), 3.dp.toPx())
+        drawLine(color, Offset(x, y), Offset(x - direction * size, y + size / 2), 3.dp.toPx())
+        
+        // Animated pulse
+        val p = (System.currentTimeMillis() % 1000) / 1000f
+        drawCircle(color.copy(alpha = 1f - p), radius = p * size, center = Offset(x - direction * size * 0.5f, y))
     }
 }
 

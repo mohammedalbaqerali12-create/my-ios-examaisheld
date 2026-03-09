@@ -21,7 +21,9 @@ class CentralNeuralLink @Inject constructor() {
         val scanningSpeedMultiplier: Float = 1.0f,
         val stealthPeekEnabled: Boolean = false,
         val aiNeuralState: NeuralState = NeuralState.STABLE,
-        val refreshRateHz: Int = 30 // Default UI refresh
+        val refreshRateHz: Int = 30, // Default UI refresh
+        val spectralSensitivity: Float = 1.0f, // Multiplier for signal detection depth
+        val temporalSyncActive: Boolean = false // Sync audio/visual/radio streams
     )
 
     enum class NeuralState {
@@ -51,14 +53,16 @@ class CentralNeuralLink @Inject constructor() {
             aiNeuralState = state,
             refreshRateHz = when(state) {
                 NeuralState.OVERDRIVE -> 60
-                NeuralState.PRIME_SYNERGY -> 90 // Ultra-high refresh for Prime
+                NeuralState.PRIME_SYNERGY -> 120 // Ultra-high refresh for Prime
                 else -> 30
             },
             scanningSpeedMultiplier = when(state) {
-                NeuralState.OVERDRIVE -> 2.0f
-                NeuralState.PRIME_SYNERGY -> 3.0f // Maximum scan velocity
+                NeuralState.OVERDRIVE -> 2.5f
+                NeuralState.PRIME_SYNERGY -> 5.0f // Maximum scan velocity
                 else -> 1.0f
-            }
+            },
+            temporalSyncActive = state == NeuralState.PRIME_SYNERGY,
+            spectralSensitivity = if (state == NeuralState.PRIME_SYNERGY) 2.0f else 1.0f
         )
     }
 }
