@@ -244,22 +244,37 @@ class AdaptiveLearningEngine @Inject constructor(
                 else -> 0.012
             }
             
+            // --- ASTRA NEXUS: GENETIC MUTATION PROTOCOL ---
+            // AI Self-Development: If system is unstable, it randomly mutates its core DNA thresholds
+            // to find a more optimal configuration automatically (Survival of the fittest).
+            val processNoiseMutation = if (newState == CentralNeuralLink.NeuralState.EVOLVING) {
+                targetProcessNoise * (0.9 + (Math.random() * 0.2)) // Mutate by +/- 10%
+            } else {
+                targetProcessNoise
+            }
+            
             val scanningMultiplier = when(newState) {
                 CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 5.0f
                 CentralNeuralLink.NeuralState.OVERDRIVE -> 2.5f
                 else -> 1.0f
             }
+            
+            val sensitivityMutation = if (hasCheatingSignal) {
+                (current.spectralSensitivity * (1.0f + (Math.random() * 0.15f).toFloat())) // Increase sensitivity slightly 
+            } else {
+                1.0f
+            }
 
             current.copy(
                 aiNeuralState = newState,
-                kalmanProcessNoise = targetProcessNoise,
+                kalmanProcessNoise = processNoiseMutation,
                 scanningSpeedMultiplier = scanningMultiplier,
                 refreshRateHz = when(newState) {
                     CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 120
                     CentralNeuralLink.NeuralState.OVERDRIVE -> 60
                     else -> 30
                 },
-                spectralSensitivity = if (newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 2.5f else 1.0f,
+                spectralSensitivity = if (newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) sensitivityMutation else 1.0f,
                 temporalSyncActive = newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY
             )
         }
