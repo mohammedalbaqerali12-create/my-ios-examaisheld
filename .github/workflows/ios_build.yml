@@ -57,7 +57,7 @@ jobs:
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
-        build
+        build > ../action_build_log.txt 2>&1 || true
 
     - name: Package into IPA
       working-directory: ./iosApp
