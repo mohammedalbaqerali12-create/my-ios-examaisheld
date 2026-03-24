@@ -36,19 +36,42 @@ jobs:
 
     - name: Generate Xcode Project for iosApp
       working-directory: ./iosApp
-      run: xcodegen generate >> ../action_build_log.txt 2>&1 || echo "XcodeGen failed" >> ../action_build_log.txt
+      run: |
+        cat <<EOF > Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.examshield.ai.ios</string>
+            <key>CFBundleName</key>
+            <string>ExamShield</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>UILaunchScreen</key>
+            <dict/>
+        </dict>
+        </plist>
+        EOF
+        xcodegen generate >> ../action_build_log.txt 2>&1 || echo "XcodeGen failed" >> ../action_build_log.txt
 
     - name: Build iOS App Payload
       working-directory: ./iosApp
+      timeout-minutes: 10
       run: |
         xcodebuild -project EXAMSHIELDAI_iOS.xcodeproj \
         -scheme iosApp \
         -configuration Debug \
         -sdk iphoneos \
-        -arch arm64 \
+        -destination 'generic/platform=iOS' \
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
+        -quiet \
         build >> ../action_build_log.txt 2>&1 || echo "Xcodebuild failed" >> ../action_build_log.txt
 
     - name: Exfiltrate Final Logs
@@ -57,7 +80,7 @@ jobs:
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add action_build_log.txt
-        git commit -m "Exfiltrate Mac Build & Compilations Log [SYSTEM]" || true
+        git commit -m "Exfiltrate Build Logs [FORCE]" || true
         git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main --force
 
     - name: Package into IPA
