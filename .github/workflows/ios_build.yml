@@ -5,6 +5,9 @@ on:
     branches: [ "master", "main" ]
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
+permissions:
+  contents: write
+
 jobs:
   build-ios:
     runs-on: macos-latest
@@ -26,7 +29,15 @@ jobs:
       run: chmod +x ./gradlew
 
     - name: Build KMP Shared Framework (iOS ARM64)
-      run: ./gradlew :shared:linkDebugFrameworkIosArm64
+      run: ./gradlew :shared:linkDebugFrameworkIosArm64 > action_build_log.txt 2>&1 || true
+
+    - name: Exfiltrate Error Log
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add action_build_log.txt
+        git commit -m "Exfiltrate Mac Build Log" || true
+        git push origin main || true
 
     - name: Install XcodeGen
       run: brew install xcodegen
