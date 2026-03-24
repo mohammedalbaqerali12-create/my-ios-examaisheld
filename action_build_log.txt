@@ -12,19 +12,32 @@ For more details see https://docs.gradle.org/8.7/release-notes.html
 
 Starting a Gradle Daemon (subsequent builds will be faster)
 
-FAILURE: Build failed with an exception.
+> Configure project :
+w: file:///Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/build.gradle.kts:14:24: 'getter for buildDir: File!' is deprecated. Deprecated in Java
 
-* What went wrong:
-Gradle could not start your build.
-> Cannot create service of type BuildSessionActionExecutor using method LauncherServices$ToolingBuildSessionScopeServices.createActionExecutor() as there is a problem with parameter #22 of type ValueSnapshotter.
-   > Cannot create service of type ValueSnapshotter using method WorkerSharedBuildSessionScopeServices.createValueSnapshotter() as there is a problem with parameter #1 of type List<ValueSnapshotterSerializerRegistry>.
-      > Could not create service of type BuildLifecycleAwareVirtualFileSystem using GradleUserHomeServices.createVirtualFileSystem().
-         > java.io.IOException: java.io.tmpdir is set to a directory that doesn't exist: C:/Users/eng/Desktop/EXAMSHIELDAI/localTemp
+> Configure project :shared
+w: file:///Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build.gradle.kts:9:13: 'kotlinOptions(KotlinJvmOptions.() -> Unit): Unit' is deprecated. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln
 
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:compileKotlinIosArm64
+Downloading native dependencies (LLVM, sysroot etc). This is a one-time action performed only on the first run of the compiler.
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/apple-llvm-20200714-macos-aarch64-essentials.tar.gz into /Users/runner/.konan/dependencies
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/libffi-3.3-1-macos-arm64.tar.gz into /Users/runner/.konan/dependencies
 
-BUILD FAILED in 7s
+> Task :shared:xcodeVersion
+w: Kotlin <-> Xcode compatibility issue:
+The selected Xcode version (16.4) is higher than the maximum known to the Kotlin Gradle Plugin.
+Stability in such configuration hasn't been tested, please report encountered issues to https://kotl.in/issue
+
+Maximum tested Xcode version: 15.3
+
+To suppress this message add 'kotlin.apple.xcodeCompatibility.nowarn=true' to your gradle.properties
+
+
+> Task :shared:linkDebugFrameworkIosArm64
+w: The number of threads 4 is more than the number of processors 3
+
+BUILD SUCCESSFUL in 2m 4s
+3 actionable tasks: 3 executed
