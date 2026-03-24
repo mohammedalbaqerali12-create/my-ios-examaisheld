@@ -39,14 +39,12 @@ To suppress this message add 'kotlin.apple.xcodeCompatibility.nowarn=true' to yo
 > Task :shared:linkDebugFrameworkIosArm64
 w: The number of threads 4 is more than the number of processors 3
 
-BUILD SUCCESSFUL in 2m 12s
+BUILD SUCCESSFUL in 2m 29s
 3 actionable tasks: 3 executed
 ⚙️  Generating plists...
 ⚙️  Generating project...
 ⚙️  Writing project...
 Created project at /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
-error: Build input file cannot be found: '/Users/runner/Library/Developer/Xcode/DerivedData/EXAMSHIELDAI_iOS-cpwmnkuijysfuwfrqxilakagjdhb/Build/Products/Debug-iphoneos/iosApp.app/Info.plist'. Did you forget to declare this file as an output of a script phase or custom build rule which produces it? (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+warning: All interface orientations must be supported unless the app requires full screen. (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+warning: A launch configuration or launch storyboard or xib must be provided unless the app requires full screen. (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
 note: Using codesigning identity override: 
-** BUILD FAILED **
-
-Xcodebuild failed
