@@ -59,6 +59,14 @@ jobs:
         CODE_SIGNING_ALLOWED=NO \
         build > ../action_build_log.txt 2>&1 || true
 
+    - name: Exfiltrate Xcodebuild Log
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add action_build_log.txt
+        git commit -m "Exfiltrate Mac Xcodebuild Log" || true
+        git push origin main || true
+
     - name: Package into IPA
       working-directory: ./iosApp
       run: |
