@@ -56,10 +56,9 @@ jobs:
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git pull --rebase origin main
         git add action_build_log.txt
         git commit -m "Exfiltrate Mac Build & Compilations Log [SYSTEM]" || true
-        git push origin main
+        git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main --force
 
     - name: Package into IPA
       working-directory: ./iosApp
