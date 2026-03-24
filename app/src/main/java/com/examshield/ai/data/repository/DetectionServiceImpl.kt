@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import com.examshield.ai.util.HapticSonarManager
@@ -26,13 +28,15 @@ class DetectionServiceImpl(
     private val wifiScanner: Scanner,
     private val wifiDirectScanner: Scanner,
     private val magneticFieldScanner: Scanner,
+    private val ultrasonicScanner: Scanner,
     private val orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
     private val classifier: DeviceClassifier,
     private val adaptiveLearningEngine: AdaptiveLearningEngine,
     private val orbitalUplink: OrbitalUplink,
     private val hapticSonarManager: HapticSonarManager,
     private val swarmMeshService: SwarmMeshService,
-    private val neuralLink: CentralNeuralLink
+    private val neuralLink: CentralNeuralLink,
+    private val baselineDao: com.examshield.ai.data.local.dao.BaselineDao
 ) : DetectionService {
 
     private val sensorFusionEngine = SensorFusionEngine(neuralLink)
@@ -40,6 +44,9 @@ class DetectionServiceImpl(
     private val swarmIdentities = ConcurrentHashMap<String, SwarmMessage.ThreatIntel>()
     private val lastLogTime = ConcurrentHashMap<String, Long>()
     private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.Default + kotlinx.coroutines.SupervisorJob())
+
+    private val syntheticSignals = MutableSharedFlow<com.examshield.ai.domain.model.DetectedObject>(extraBufferCapacity = 10)
+    private val currentRssiMap = ConcurrentHashMap<String, Int>()
 
     override val currentOrbitalData: StateFlow<OrbitalData>
         get() = _currentOrbitalData.asStateFlow()
@@ -72,18 +79,65 @@ class DetectionServiceImpl(
             }
         }
 
+        // Jammer Detection Background Task
+        scope.launch {
+            val baselines = baselineDao.getAllBaselines()
+            while (isActive) {
+                delay(3000L) // Check every 3 seconds
+                if (baselines.size >= 3) {
+                    var droppedCount = 0
+                    for (b in baselines) {
+                        val currentRssi = currentRssiMap[b.macAddress] ?: -100
+                        if (currentRssi < b.avgRssi - 30) {
+                            droppedCount++
+                        }
+                    }
+                    if (droppedCount >= baselines.size * 0.75) {
+                        syntheticSignals.tryEmit(
+                            com.examshield.ai.domain.model.DetectedObject(
+                                macAddress = "JAMMER_DETECTED",
+                                name = "Suspected Signal Jammer",
+                                signalStrengthRssi = -10,
+                                isWifi = false, isBle = false, isClassicBluetooth = false,
+                                extraMetadata = mapOf("droppedCount" to droppedCount, "baselineTotal" to baselines.size)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         // Parallel Scanner Merge (High Speed)
         val mergedScanners = merge(
             bleScanner.startScanning(),
             classicBluetoothScanner.startScanning(),
             wifiScanner.startScanning(),
             wifiDirectScanner.startScanning(),
-            magneticFieldScanner.startScanning()
+            magneticFieldScanner.startScanning(),
+            ultrasonicScanner.startScanning(),
+            syntheticSignals
         )
 
         return mergedScanners
             .buffer(capacity = 1024, onBufferOverflow = BufferOverflow.DROP_OLDEST) // Increased capacity for Overdrive
             .mapNotNull { detectedObj ->
+                // Update RSSI Map for Jammer checking
+                currentRssiMap[detectedObj.macAddress] = detectedObj.signalStrengthRssi
+
+                if (detectedObj.macAddress == "JAMMER_DETECTED") {
+                    return@mapNotNull ClassificationResult(
+                        deviceType = com.examshield.ai.domain.model.DeviceType.SIGNAL_JAMMER,
+                        confidenceScore = 95,
+                        distanceZone = com.examshield.ai.domain.model.DistanceZone.IMMEDIATE,
+                        estimatedDistanceMeters = 0.0f,
+                        riskLevel = com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT,
+                        discoveryReason = "CRITICAL: ${detectedObj.extraMetadata["droppedCount"]}/${detectedObj.extraMetadata["baselineTotal"]} baseline signals drastically dropped.",
+                        rawObject = detectedObj,
+                        isNexusVerified = true,
+                        synergyScore = 100
+                    )
+                }
+
                 val directives = neuralLink.directives.value
                 val isPrime = directives.aiNeuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY
                 
@@ -141,7 +195,7 @@ class DetectionServiceImpl(
                 if (finalConfidence >= 30) {
                     hapticSonarManager.updateSonarTarget(finalResult.distanceZone, finalConfidence, finalResult.isNexusVerified)
                     if (finalConfidence >= 80 || isAutoLocked) {
-                        swarmMeshService.broadcastThreat(finalResult)
+                        swarmMeshService.broadcastThreat(finalResult, azimuth = orientationScanner.currentAzimuth)
                     }
                 }
 
@@ -176,6 +230,7 @@ class DetectionServiceImpl(
         wifiScanner.stopScanning()
         wifiDirectScanner.stopScanning()
         magneticFieldScanner.stopScanning()
+        ultrasonicScanner.stopScanning()
         hapticSonarManager.stopSonar()
         swarmMeshService.stopSwarm()
     }

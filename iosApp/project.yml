@@ -1,0 +1,17 @@
+name: EXAMSHIELDAI_iOS
+options:
+  bundleIdPrefix: com.examshield.ai
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources: [iosApp]
+    settings:
+      CODE_SIGN_IDENTITY: ""
+      CODE_SIGNING_REQUIRED: "NO"
+      CODE_SIGNING_ALLOWED: "NO"
+      FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework"
+    dependencies:
+      - framework: ../shared/build/bin/iosArm64/debugFramework/shared.framework
+        embed: true

@@ -1,0 +1,59 @@
+name: Build iOS IPA (Cloud Mac)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Make Gradle Wrapper Executable
+      run: chmod +x ./gradlew
+
+    - name: Build KMP Shared Framework (iOS ARM64)
+      run: ./gradlew :shared:linkDebugFrameworkIosArm64
+
+    - name: Install XcodeGen
+      run: brew install xcodegen
+
+    - name: Generate Xcode Project for iosApp
+      working-directory: ./iosApp
+      run: xcodegen generate
+
+    - name: Build iOS App Payload
+      working-directory: ./iosApp
+      run: |
+        xcodebuild -project EXAMSHIELDAI_iOS.xcodeproj \
+        -scheme iosApp \
+        -configuration Debug \
+        -sdk iphoneos \
+        -arch arm64 \
+        CODE_SIGN_IDENTITY="" \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
+        build
+
+    - name: Package into IPA
+      working-directory: ./iosApp
+      run: |
+        mkdir -p Payload
+        cp -r build/Debug-iphoneos/iosApp.app Payload/
+        zip -r examshield_ios_app.ipa Payload
+
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: EXAMSHIELD_iOS
+        path: iosApp/examshield_ios_app.ipa

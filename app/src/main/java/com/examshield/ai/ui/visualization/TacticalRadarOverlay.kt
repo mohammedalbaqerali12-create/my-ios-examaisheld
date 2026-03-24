@@ -14,8 +14,12 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.examshield.ai.localization.Vector2D
+import com.examshield.ai.domain.model.ClassificationResult
+import com.examshield.ai.domain.model.SignalTrajectory
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.atan2
+import kotlin.math.PI
 
 /**
  * ASTRA NEXUS: TACTICAL POLAR RADAR (ALIEN EDITION)
@@ -27,15 +31,14 @@ import kotlin.math.sin
 fun TacticalRadarOverlay(
     modifier: Modifier = Modifier,
     supervisorPos: Vector2D,
-    devicePos: Vector2D?,
+    targets: List<ClassificationResult>,
     currentAzimuth: Float,
-    targetDeviceType: String,
-    confidence: Float,
-    maxRange: Float = 5.0f // New parameter for dynamic scaling
+    maxRange: Float = 5.0f
 ) {
     val bioGreen = Color(0xFF00FF41)
     val neonCyan = Color(0xFF00E5FF)
     val alertRed = Color(0xFFFF1744)
+    val trajectoryGold = Color(0xFFFFD700)
 
     val infiniteTransition = rememberInfiniteTransition(label = "RadarTransitions")
     
@@ -103,14 +106,17 @@ fun TacticalRadarOverlay(
         drawLine(color = neonCyan, start = Offset(center.x - 10, center.y), end = Offset(center.x + 10, center.y), strokeWidth = 2f)
         drawLine(color = neonCyan, start = Offset(center.x, center.y - 10), end = Offset(center.x, center.y + 10), strokeWidth = 2f)
 
-        // 5. DRAW TARGET SIGNATURE
-        devicePos?.let { pos ->
+        // 5. DRAW TARGET SIGNATURES
+        val angleRad = Math.toRadians(-currentAzimuth.toDouble())
+
+        targets.forEach { result ->
+            val pos = (result.rawObject.extraMetadata["location"] as? Vector2D) ?: return@forEach
+            
             // Vector relative to supervisor
-            val relX = pos.x - supervisorPos.x
-            val relY = pos.y - supervisorPos.y
+            val relX = pos.x.toDouble() - supervisorPos.x.toDouble()
+            val relY = pos.y.toDouble() - supervisorPos.y.toDouble()
             
             // Adjust for phone rotation (Azimuth)
-            val angleRad = Math.toRadians(-currentAzimuth.toDouble())
             val rotatedX = (relX * cos(angleRad) - relY * sin(angleRad)).toFloat()
             val rotatedY = (relX * sin(angleRad) + relY * cos(angleRad)).toFloat()
 
@@ -119,30 +125,63 @@ fun TacticalRadarOverlay(
                 center.y - (rotatedY * rangeScale) // Invert Y for UI coord system
             )
 
+            // Confidence-based color
+            val isHighThreat = result.confidenceScore > 80 || result.riskLevel == com.examshield.ai.domain.model.RiskLevel.LEVEL_4_CONFIRMED_THREAT
+            val sigColor = if (isHighThreat) alertRed else bioGreen
+
             // Pulse on target
             val targetPulse = (pulseRadius + 0.5f) % 1.0f
             drawCircle(
-                color = if (confidence > 0.8f) alertRed.copy(alpha = 1f - targetPulse) else bioGreen.copy(alpha = 1f - targetPulse),
-                radius = 15f + (targetPulse * 30f),
+                color = sigColor.copy(alpha = 1f - targetPulse),
+                radius = 12f + (targetPulse * 20f),
                 center = targetDrawPos,
-                style = Stroke(width = 3f)
+                style = Stroke(width = 2f)
             )
 
             // Target Core
             drawCircle(
-                color = if (confidence > 0.8f) alertRed else bioGreen,
-                radius = 10f,
+                color = sigColor,
+                radius = 8f,
                 center = targetDrawPos
             )
             
-            // Pulse Path (Neural Link)
-            drawLine(
-                color = if (confidence > 0.8f) alertRed.copy(alpha = 0.4f) else neonCyan.copy(alpha = 0.4f),
-                start = center,
-                end = targetDrawPos,
-                strokeWidth = 2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
-            )
+            // Draw Trajectory Arrow (Behavioral Analysis)
+            if (result.trajectory == SignalTrajectory.APPROACHING || result.trajectory == SignalTrajectory.RECEDING) {
+                val isApproaching = result.trajectory == SignalTrajectory.APPROACHING
+                val arrowLen = 20f
+                val arrowAngle = atan2(targetDrawPos.y - center.y, targetDrawPos.x - center.x)
+                
+                // Direction of arrow
+                val dir = if (isApproaching) -1f else 1f // Inwards for approaching, outwards for receding
+                
+                val arrowTip = Offset(
+                    targetDrawPos.x + cos(arrowAngle) * (dir * 25f),
+                    targetDrawPos.y + sin(arrowAngle) * (dir * 25f)
+                )
+                
+                drawLine(
+                    color = trajectoryGold,
+                    start = targetDrawPos,
+                    end = arrowTip,
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round
+                )
+                
+                // Arrow head
+                val headAngle = if (isApproaching) arrowAngle else arrowAngle + PI.toFloat()
+                drawLine(
+                    color = trajectoryGold,
+                    start = arrowTip,
+                    end = Offset(arrowTip.x - cos(headAngle - 0.5f) * 10f, arrowTip.y - sin(headAngle - 0.5f) * 10f),
+                    strokeWidth = 3f
+                )
+                drawLine(
+                    color = trajectoryGold,
+                    start = arrowTip,
+                    end = Offset(arrowTip.x - cos(headAngle + 0.5f) * 10f, arrowTip.y - sin(headAngle + 0.5f) * 10f),
+                    strokeWidth = 3f
+                )
+            }
         }
     }
 }

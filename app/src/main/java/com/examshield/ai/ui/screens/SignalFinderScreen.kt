@@ -133,13 +133,16 @@ fun SignalFinderScreen(
                         neuralState = aiNeuralState
                     )
                 } else {
+                    val displayThreats = threatList.map { 
+                        if (it.rawObject.macAddress == macAddress && estimatedPos != null) {
+                            it.copy(rawObject = it.rawObject.copy(extraMetadata = it.rawObject.extraMetadata + ("location" to estimatedPos!!)))
+                        } else it
+                    }
                     TacticalRadarOverlay(
                         modifier = Modifier.fillMaxSize(),
                         supervisorPos = supervisorPos ?: Vector2D(0f, 0f),
-                        devicePos = estimatedPos,
+                        targets = displayThreats,
                         currentAzimuth = azureAzimuth,
-                        targetDeviceType = targetDevice?.deviceType?.name ?: "UNKNOWN",
-                        confidence = confidence.toFloat() / 100f,
                         maxRange = viewModel.maxDetectionRange.collectAsState().value
                     )
                 }

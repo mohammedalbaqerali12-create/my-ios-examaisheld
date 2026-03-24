@@ -155,6 +155,17 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
             selfLearningBoost += 20
         }
         
+        // ASTRA V12: Trajectory-Aware Risk Elevation
+        when (context.trajectory) {
+            com.examshield.ai.domain.model.SignalTrajectory.APPROACHING -> {
+                selfLearningBoost += 25
+            }
+            com.examshield.ai.domain.model.SignalTrajectory.FLUCTUATING -> {
+                selfLearningBoost += 10
+            }
+            else -> {}
+        }
+        
         confidence += selfLearningBoost
         
         // --- ASTRA NEXUS PRO: SELF-CORRECTION & STABILITY ---
@@ -171,6 +182,8 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
             if (context.isNew) append("NEW_NODE ")
             if (context.isConsistentStream) append("BEHAVIOR_MATCH ")
             if (context.isRepeatedlySeenRecently) append("BURST_PATTERN ")
+            if (context.trajectory == com.examshield.ai.domain.model.SignalTrajectory.APPROACHING) append("APPROACH_DETECTED ")
+            if (context.trajectory == com.examshield.ai.domain.model.SignalTrajectory.FLUCTUATING) append("FLUX_ANOMALY ")
             if (detectedObject.isClassicBluetooth) append("CLASSIC_BT ")
             if (detectedObject.isBle) append("BLE_ADVERT ")
             if (detectedObject.macAddress.startsWith("MAGNETIC")) append("MAG_SENSOR ")
@@ -274,10 +287,11 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
                          discoveryReason = finalReason,
                          rawObject = detectedObject,
                          isNexusVerified = isNexusVerified,
-                         synergyScore = synergyScore.coerceIn(0, 100)
-                     )
-                 )
-                 finalReason = "NEXUS_NEW_PATTERN_EVOLVED"
+                          synergyScore = synergyScore.coerceIn(0, 100),
+                          trajectory = context.trajectory
+                      )
+                  )
+                  finalReason = "NEXUS_NEW_PATTERN_EVOLVED"
              }
         }
         
@@ -295,7 +309,8 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
                 context.isMarkedFriendly -> com.examshield.ai.domain.model.SupervisorFeedback.FRIENDLY
                 context.isMarkedCheating -> com.examshield.ai.domain.model.SupervisorFeedback.CHEATING
                 else -> com.examshield.ai.domain.model.SupervisorFeedback.PENDING
-            }
+            },
+            trajectory = context.trajectory
         )
     }
 
@@ -351,8 +366,9 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         var score = when (type) {
             DeviceType.SMARTWATCH, DeviceType.SMARTPHONE -> 85
             DeviceType.WIRELESS_EARBUD, DeviceType.NANO_EARPIECE -> 75
-            DeviceType.MAGNETIC_ANOMALY -> 30 // Deprioritized, the Fusion Engine handles real threats
+            DeviceType.MAGNETIC_ANOMALY -> 30 
             DeviceType.ROUTER_INFRASTRUCTURE -> 10 
+            DeviceType.SIGNAL_JAMMER -> 100
             DeviceType.SUSPICIOUS_UNKNOWN -> 50
         }
 

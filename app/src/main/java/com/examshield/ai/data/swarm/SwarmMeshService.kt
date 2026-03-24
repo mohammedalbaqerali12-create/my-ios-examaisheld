@@ -98,7 +98,7 @@ class SwarmMeshService @Inject constructor(
         }
     }
 
-    fun broadcastThreat(threat: ClassificationResult) {
+    fun broadcastThreat(threat: ClassificationResult, azimuth: Float = 0f, lat: Double = 0.0, lng: Double = 0.0) {
         if (!isMeshActive || socket == null) return
         scope.launch {
             try {
@@ -110,6 +110,9 @@ class SwarmMeshService @Inject constructor(
                         put("deviceType", threat.deviceType.name)
                         put("confidence", threat.confidenceScore)
                         put("sourceNode", android.os.Build.MODEL)
+                        put("azimuth", azimuth)
+                        put("lat", lat)
+                        put("lng", lng)
                     }
                     sendPacket(json.toString())
                 }
@@ -151,7 +154,10 @@ class SwarmMeshService @Inject constructor(
                         rssi = json.getInt("rssi"),
                         deviceType = json.getString("deviceType"),
                         confidence = json.getInt("confidence"),
-                        sourceNode = json.getString("sourceNode")
+                        sourceNode = json.getString("sourceNode"),
+                        azimuth = json.optDouble("azimuth", 0.0).toFloat(),
+                        latitude = json.optDouble("lat", 0.0),
+                        longitude = json.optDouble("lng", 0.0)
                     )
                     _swarmIntelStream.emit(intel)
                 }
@@ -194,6 +200,9 @@ sealed class SwarmMessage {
         val rssi: Int,
         val deviceType: String,
         val confidence: Int,
-        val sourceNode: String
+        val sourceNode: String,
+        val azimuth: Float = 0f,
+        val latitude: Double = 0.0,
+        val longitude: Double = 0.0
     ) : SwarmMessage()
 }

@@ -122,6 +122,11 @@ class MonitorScreenViewModel @Inject constructor(
                 if (result.isNexusVerified || result.confidenceScore > 40) {
                     currentMap[result.rawObject.macAddress] = result
                     _threatListMap.value = currentMap
+                    
+                    // Trigger Haptic Feedback for critical nearby threats
+                    if (result.confidenceScore > 85 && result.estimatedDistanceMeters < 1.5f) {
+                        com.examshield.ai.util.VibrationHelper.vibrateThreatPulse()
+                    }
                 }
             }
         }
