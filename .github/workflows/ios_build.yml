@@ -40,34 +40,40 @@ jobs:
 
     - name: Build iOS App Payload
       working-directory: ./iosApp
-      timeout-minutes: 10
+      timeout-minutes: 15
       run: |
         xcodebuild -project EXAMSHIELDAI_iOS.xcodeproj \
         -scheme iosApp \
         -configuration Debug \
         -sdk iphoneos \
         -destination 'generic/platform=iOS' \
+        SYMROOT=$(pwd)/build \
+        OBJROOT=$(pwd)/build \
         CODE_SIGN_IDENTITY="" \
         CODE_SIGNING_REQUIRED=NO \
         CODE_SIGNING_ALLOWED=NO \
-        -quiet \
         build >> ../action_build_log.txt 2>&1 || echo "Xcodebuild failed" >> ../action_build_log.txt
 
-    - name: Exfiltrate Final Logs
+    - name: Exfiltrate Build Logs [FORCE]
       if: always()
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add action_build_log.txt
-        git commit -m "Exfiltrate Build Logs [FORCE]" || true
+        git commit -m "Exfiltrate Xcode build log for debugging" || true
         git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main --force
 
     - name: Package into IPA
       working-directory: ./iosApp
       run: |
         mkdir -p Payload
-        cp -r build/Debug-iphoneos/iosApp.app Payload/ || echo "App not found"
-        zip -r examshield_ios_app.ipa Payload
+        APP_PATH=$(find build -name "*.app" | head -n 1)
+        if [ -n "$APP_PATH" ]; then
+          cp -r "$APP_PATH" Payload/
+          zip -r examshield_ios_app.ipa Payload
+        else
+          echo "APPLICATION (.app) NOT FOUND IN build/ DIRECTORY" >> ../action_build_log.txt
+        fi
 
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
