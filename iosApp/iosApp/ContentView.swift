@@ -15,9 +15,18 @@ struct ContentView: View {
                     .foregroundColor(.green)
                     .padding(.top, 40)
                 
+                // ASTRA NEXUS: Integration of Shared KMP Logic
+                let advisor = AIPerformanceAdvisor()
+                Text("NEURAL LINK: \(advisor.getDiagnosticChatResponse(query: "status"))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.green.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
                 Text(isScanning ? "SYSTEM ACTIVE - AGENTS DEPLOYED" : "SYSTEM STANDBY")
                     .font(.caption)
                     .foregroundColor(isScanning ? .red : .gray)
+                    .padding(.top, 5)
                     .padding(.bottom, 20)
                 
                 // Native iOS Radar UI
