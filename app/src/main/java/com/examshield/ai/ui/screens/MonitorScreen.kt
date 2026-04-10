@@ -132,7 +132,10 @@ fun MonitorScreen(
                             ThreatSectionHeader("⚠️ الأهداف الحرجة (Critical Targets)", com.examshield.ai.ui.theme.ThreatRed)
                         }
                         items(criticalThreats.sortedByDescending { it.confidenceScore }, key = { it.rawObject.macAddress }) { threat ->
-                             TacticalThreatPod(threat = threat, onClick = { navController.navigate("finder/${threat.rawObject.macAddress}") }, onFriendly = { viewModel.markAsFriendly(it) }, onCheating = { viewModel.markAsCheating(it) })
+                             TacticalThreatPod(threat = threat, onClick = { 
+                                     val encodedMac = try { java.net.URLEncoder.encode(threat.rawObject.macAddress, "UTF-8") } catch(e: Exception) { threat.rawObject.macAddress }
+                                     navController.navigate("finder/$encodedMac") 
+                                 }, onFriendly = { viewModel.markAsFriendly(it) }, onCheating = { viewModel.markAsCheating(it) })
                         }
                     }
 
@@ -141,7 +144,10 @@ fun MonitorScreen(
                             ThreatSectionHeader("📡 أهداف قيد المسح (Active Signals)", com.examshield.ai.ui.theme.NeonCyan)
                         }
                         items(activeMonitoring.sortedByDescending { it.confidenceScore }, key = { it.rawObject.macAddress }) { threat ->
-                             TacticalThreatPod(threat = threat, onClick = { navController.navigate("finder/${threat.rawObject.macAddress}") }, onFriendly = { viewModel.markAsFriendly(it) }, onCheating = { viewModel.markAsCheating(it) })
+                             TacticalThreatPod(threat = threat, onClick = { 
+                                     val encodedMac = try { java.net.URLEncoder.encode(threat.rawObject.macAddress, "UTF-8") } catch(e: Exception) { threat.rawObject.macAddress }
+                                     navController.navigate("finder/$encodedMac") 
+                                 }, onFriendly = { viewModel.markAsFriendly(it) }, onCheating = { viewModel.markAsCheating(it) })
                         }
                     }
                 }

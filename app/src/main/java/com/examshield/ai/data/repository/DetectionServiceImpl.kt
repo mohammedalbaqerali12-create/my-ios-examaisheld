@@ -152,10 +152,9 @@ class DetectionServiceImpl(
                 finalResult
             }
             .filter { result ->
-                // Ultimate Precision Path: Show all categorized tech nodes
+                // Professional Depth Path: Show all tech nodes
                 val type = result.deviceType
-                type != com.examshield.ai.domain.model.DeviceType.ROUTER_INFRASTRUCTURE &&
-                type != com.examshield.ai.domain.model.DeviceType.SUSPICIOUS_UNKNOWN
+                type != com.examshield.ai.domain.model.DeviceType.ROUTER_INFRASTRUCTURE
             }
             .flowOn(Dispatchers.Default)
     }

@@ -127,12 +127,10 @@ class TFLiteDeviceClassifierImpl @Inject constructor(
         val result = performBaseClassification(detectedObject)
         
         // --- ASTRA V5 SURGICAL NAMING ---
-        // If the device has no name, generate a professional technical signature
-        if (result.rawObject.name.isNullOrBlank()) {
-            val manufacturer = OuiLookup.lookup(result.rawObject.macAddress)
-            val surgicalName = generateProfessionalName(result, manufacturer)
-            return result.copy(rawObject = result.rawObject.copy(name = surgicalName))
-        }
+        // Force all devices to have a professional name even if blank
+        val manufacturer = OuiLookup.lookup(result.rawObject.macAddress)
+        val surgicalName = generateProfessionalName(result, manufacturer)
+        return result.copy(rawObject = result.rawObject.copy(name = surgicalName))
         
         return result
     }

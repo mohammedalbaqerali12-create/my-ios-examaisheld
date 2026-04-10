@@ -57,8 +57,10 @@ class MainActivity : ComponentActivity() {
                             MonitorScreen(navController = navController, viewModel = sharedViewModel)
                         }
                         composable("finder/{macAddress}") { backStackEntry ->
+                            val rawMac = backStackEntry.arguments?.getString("macAddress") ?: ""
+                            val decodedMac = try { java.net.URLDecoder.decode(rawMac, "UTF-8") } catch(e: Exception) { rawMac }
                             SignalFinderScreen(
-                                macAddress = backStackEntry.arguments?.getString("macAddress") ?: "",
+                                macAddress = decodedMac,
                                 viewModel = sharedViewModel
                             )
                         }

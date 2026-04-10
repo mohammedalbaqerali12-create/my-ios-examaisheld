@@ -42,6 +42,16 @@ fun SignalFinderScreen(
     val threatList by viewModel.threatList.collectAsState()
     val targetDevice = threatList.find { it.rawObject.macAddress == macAddress }
     
+    LaunchedEffect(macAddress) {
+        viewModel.localizationController.targetMacAddress = macAddress
+    }
+    
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.localizationController.targetMacAddress = null
+        }
+    }
+    
     val supervisorPos by viewModel.supervisorPos.collectAsState()
     val estimatedPos by viewModel.estimatedDevicePos.collectAsState()
     val confidence by viewModel.localizationConfidence.collectAsState()

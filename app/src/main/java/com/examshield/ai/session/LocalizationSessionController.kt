@@ -15,6 +15,11 @@ class LocalizationSessionController @Inject constructor() {
     val fusionEngine = FusionEngine()
     val envModel = EnvironmentAdaptiveModel()
     val stateMachine = LocalizationStateMachine()
+    
+    private val _targetMacAddress = MutableStateFlow<String?>(null)
+    var targetMacAddress: String?
+        get() = _targetMacAddress.value
+        set(value) { _targetMacAddress.value = value }
 
     // Kalman Filter for target position stabilization
     private var kalmanX = 0f

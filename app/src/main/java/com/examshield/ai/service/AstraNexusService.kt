@@ -40,12 +40,20 @@ class AstraNexusService : Service() {
         private const val CHANNEL_ID = "ASTRA_NEXUS_CHANNEL"
         private const val NOTIFICATION_ID = 1001
         
-        private val _staticDetectionStream = MutableSharedFlow<ClassificationResult>(replay = 5, extraBufferCapacity = 100)
+        private val _staticDetectionStream = MutableSharedFlow<ClassificationResult>(
+            replay = 5, 
+            extraBufferCapacity = 100,
+            onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+        )
         val detectionStream = _staticDetectionStream.asSharedFlow()
         
         fun start(context: Context) {
-            val intent = Intent(context, AstraNexusService::class.java)
-            context.startForegroundService(intent)
+            try {
+                val intent = Intent(context, AstraNexusService::class.java)
+                context.startService(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("ASTRA_NEXUS", "Failed to start service: ${e.message}")
+            }
         }
         
         fun stop(context: Context) {
@@ -57,8 +65,22 @@ class AstraNexusService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
-        
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIFICATION_ID, 
+                    createNotification(),
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or 
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, createNotification())
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ASTRA_NEXUS", "Error starting foreground: ${e.message}")
+            // Fallback: try starting without types if types fail
+            try { startForeground(NOTIFICATION_ID, createNotification()) } catch(e2: Exception) {}
+        }
         startScanning()
     }
 
@@ -69,26 +91,29 @@ class AstraNexusService : Service() {
     private fun startScanning() {
         android.util.Log.d("ASTRA_NEXUS", "Service Pipeline INITIALIZING...")
         serviceScope.launch {
-            detectionService.observeThreats().collect { result ->
-                callbacksInLastSecond++
-                totalCallbackCount++
-                _staticDetectionStream.emit(result)
-                
-                val now = System.currentTimeMillis()
-                if (now - lastCheckTime >= 1000) {
-                    // Update Advisor with real-time frequency
-                    performanceAdvisor.updateMetrics(
-                        refreshRate = 60, // UI assumed 60fps
-                        callbackFrequency = callbacksInLastSecond,
-                        bluetoothEnabled = true, // We are receiving data, so it's enabled
-                        rssiVariance = 5.0 // Base variance, could be calculated if needed
-                    )
+            try {
+                detectionService.observeThreats().collect { result ->
+                    callbacksInLastSecond++
+                    totalCallbackCount++
+                    _staticDetectionStream.tryEmit(result)
                     
-                    android.util.Log.d("ASTRA_NEXUS", "Pipeline Frequency: $callbacksInLastSecond callbacks/sec")
-                    
-                    callbacksInLastSecond = 0
-                    lastCheckTime = now
+                    val now = System.currentTimeMillis()
+                    if (now - lastCheckTime >= 1000) {
+                        performanceAdvisor.updateMetrics(
+                            refreshRate = 60,
+                            callbackFrequency = callbacksInLastSecond,
+                            bluetoothEnabled = true,
+                            rssiVariance = 5.0
+                        )
+                        
+                        android.util.Log.d("ASTRA_NEXUS", "Pipeline Frequency: $callbacksInLastSecond callbacks/sec")
+                        
+                        callbacksInLastSecond = 0
+                        lastCheckTime = now
+                    }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("ASTRA_NEXUS", "Stream error: ${e.message}")
             }
         }
     }

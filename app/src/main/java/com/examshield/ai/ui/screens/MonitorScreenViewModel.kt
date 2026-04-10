@@ -73,7 +73,11 @@ class MonitorScreenViewModel @Inject constructor(
         map.values.filter { it.rawObject.macAddress !in ignored }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _rawDetectionStream = MutableSharedFlow<ClassificationResult>(replay = 0, extraBufferCapacity = 64)
+    private val _rawDetectionStream = MutableSharedFlow<ClassificationResult>(
+        replay = 0, 
+        extraBufferCapacity = 64,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     val rawDetectionStream = _rawDetectionStream.asSharedFlow()
 
     private var scanningJob: kotlinx.coroutines.Job? = null
@@ -82,8 +86,13 @@ class MonitorScreenViewModel @Inject constructor(
         if (_isScanning.value) {
             stopScanning()
         } else {
-            com.examshield.ai.service.AstraNexusService.start(com.examshield.ai.util.ContextUtils.getAppContext())
-            startScanning()
+            try {
+                com.examshield.ai.service.AstraNexusService.start(com.examshield.ai.util.ContextUtils.getAppContext())
+                startScanning()
+            } catch (e: Exception) {
+                android.util.Log.e("MonitorScreenViewModel", "Failed to start service: ${e.message}", e)
+                _isScanning.value = false
+            }
         }
     }
 
@@ -94,34 +103,58 @@ class MonitorScreenViewModel @Inject constructor(
         _threatListMap.value = emptyMap()
         scanningJob?.cancel()
 
-        viewModelScope.launch {
-            detectionService.observeOrientation().collect { (ang, pitchVal) ->
-                _azimuth.value = ang
-                _pitch.value = pitchVal
-                if (_isScanning.value) {
-                    localizationController.onHeadingUpdate(ang, pitchVal)
+        scanningJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            launch {
+                try {
+                    detectionService.observeOrientation().collect { (ang, pitchVal) ->
+                        _azimuth.value = ang
+                        _pitch.value = pitchVal
+                        if (_isScanning.value) {
+                            localizationController.onHeadingUpdate(ang, pitchVal)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MonitorScreenViewModel", "Orientation error: ${e.message}")
                 }
             }
-        }
 
-        viewModelScope.launch {
-            (detectionService as com.examshield.ai.data.repository.DetectionServiceImpl)
-                .observeSteps().collect { angAtStep ->
-                    if (_isScanning.value) {
-                         localizationController.onStepDetected(angAtStep)
-                    }
+            launch {
+                try {
+                    (detectionService as? com.examshield.ai.data.repository.DetectionServiceImpl)
+                        ?.observeSteps()?.collect { angAtStep ->
+                            if (_isScanning.value) {
+                                 localizationController.onStepDetected(angAtStep)
+                            }
+                        }
+                } catch (e: Exception) {
+                    android.util.Log.e("MonitorScreenViewModel", "Step error: ${e.message}")
                 }
-        }
+            }
 
-        scanningJob = viewModelScope.launch {
-            com.examshield.ai.service.AstraNexusService.detectionStream.collect { result ->
-                _rawDetectionStream.emit(result)
-                localizationController.onScanSignal(result.rawObject.signalStrengthRssi)
+            launch {
+                try {
+                    com.examshield.ai.service.AstraNexusService.detectionStream.collect { result ->
+                        if (!_isScanning.value) return@collect
+                        _rawDetectionStream.tryEmit(result)
+                        
+                        try {
+                            val target = localizationController.targetMacAddress
+                            if (target == null || result.rawObject.macAddress == target) {
+                                localizationController.onScanSignal(result.rawObject.signalStrengthRssi)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("MonitorScreenViewModel", "Localization error: ${e.message}")
+                        }
 
-                val currentMap = _threatListMap.value.toMutableMap()
-                if (result.isNexusVerified || result.confidenceScore > 40) {
-                    currentMap[result.rawObject.macAddress] = result
-                    _threatListMap.value = currentMap
+                        val currentMap = _threatListMap.value.toMutableMap()
+                        if (result.isNexusVerified || result.confidenceScore > 40) {
+                            currentMap[result.rawObject.macAddress] = result
+                            _threatListMap.value = currentMap
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MonitorScreenViewModel", "Detection stream error: ${e.message}")
+                    _isScanning.value = false
                 }
             }
         }
