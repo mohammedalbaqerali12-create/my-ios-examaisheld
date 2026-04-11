@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "ExamShieldAI"
 include(":app")
+include(":shared")

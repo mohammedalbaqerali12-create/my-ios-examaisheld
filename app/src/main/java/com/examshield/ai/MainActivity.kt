@@ -42,6 +42,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Initialize Permanent Background State
+        val prefs = getSharedPreferences("shield_prefs", android.content.Context.MODE_PRIVATE)
+        if (!prefs.contains("permanent_background")) {
+            prefs.edit().putBoolean("permanent_background", true).apply()
+        }
+        
+        // Request Battery Optimization Exemption (Crucial for permanent background)
+        requestBatteryOptimizationExemption()
+
         requestRequiredPermissions()
 
         setContent {
@@ -97,6 +106,18 @@ class MainActivity : ComponentActivity() {
         if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled) {
             val enableBtIntent = android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableBtIntent)
+        }
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        val powerManager = getSystemService(android.os.PowerManager::class.java)
+        if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = android.net.Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (e: Exception) {}
         }
     }
 }

@@ -1,0 +1,2 @@
+module org.jetbrains.kotlin:kotlin-stdlib:2.0.0 => commonMain
+module org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1 => concurrentMain,commonMain

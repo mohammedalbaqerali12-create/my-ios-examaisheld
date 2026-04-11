@@ -49,6 +49,10 @@ class AstraNexusService : Service() {
         
         fun start(context: Context) {
             try {
+                // Set permanent background flag
+                val prefs = context.getSharedPreferences("shield_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("permanent_background", true).apply()
+
                 val intent = Intent(context, AstraNexusService::class.java)
                 context.startService(intent)
             } catch (e: Exception) {
@@ -125,9 +129,26 @@ class AstraNexusService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        // If we are in permanent mode, we might want to restart ourselves
+        val prefs = getSharedPreferences("shield_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("permanent_background", false)) {
+            val intent = Intent(this, AstraNexusService::class.java)
+            sendBroadcast(Intent("RESTART_ASTRA_NEXUS")) // Potential trigger for a receiver
+        }
         serviceJob.cancel()
         detectionService.stop()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // Ensure service stays alive even if app is swiped away
+        val prefs = getSharedPreferences("shield_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("permanent_background", false)) {
+            val restartServiceIntent = Intent(applicationContext, this.javaClass)
+            restartServiceIntent.setPackage(packageName)
+            startService(restartServiceIntent)
+        }
     }
 
     private fun createNotificationChannel() {

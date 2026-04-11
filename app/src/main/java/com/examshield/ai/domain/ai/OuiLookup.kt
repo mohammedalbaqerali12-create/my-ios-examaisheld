@@ -30,7 +30,15 @@ object OuiLookup {
         // Common for small electronics/earbuds
         "AC:87:A3" to "Xiaomi", // Xiaomi Communications Co Ltd
         "7C:B9:60" to "Anker", // Anker Innovations Limited (Soundcore)
-        "00:1D:D7" to "Jabra" // GN Netcom A/S (Jabra)
+        "00:1D:D7" to "Jabra", // GN Netcom A/S (Jabra)
+        "24:62:AB" to "Espressif (ESP32)",
+        "30:AE:A4" to "Espressif (ESP32)",
+        "DC:A6:32" to "Raspberry Pi",
+        "B8:27:EB" to "Raspberry Pi",
+        "E4:5F:01" to "Raspberry Pi",
+        "00:0C:BF" to "Intel (Mini-PC)",
+        "00:E0:4C" to "Realtek (Cheap-Module)",
+        "C4:4F:33" to "Espressif (ESP8266)"
     )
     private val lookupCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 

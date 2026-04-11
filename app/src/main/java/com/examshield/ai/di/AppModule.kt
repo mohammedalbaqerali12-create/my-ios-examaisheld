@@ -9,6 +9,7 @@ import com.examshield.ai.data.repository.DetectionServiceImpl
 import com.examshield.ai.data.scanner.BleScannerImpl
 import com.examshield.ai.data.scanner.ClassicBluetoothScannerImpl
 import com.examshield.ai.data.scanner.MagneticFieldScannerImpl
+import com.examshield.ai.data.scanner.UltrasonicScannerImpl
 import com.examshield.ai.data.scanner.WifiDirectScannerImpl
 import com.examshield.ai.data.scanner.WifiScannerImpl
 import com.examshield.ai.domain.ai.DeviceClassifier
@@ -49,6 +50,10 @@ annotation class WifiDirectScanner
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class MagneticFieldScanner
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class UltrasonicScanner
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -107,6 +112,12 @@ object AppModule {
     @Singleton
     fun provideEstimateDistanceUseCase(): EstimateDistanceUseCase {
         return EstimateDistanceUseCase()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAIPerformanceAdvisor(): com.examshield.ai.domain.ai.AIPerformanceAdvisor {
+        return com.examshield.ai.domain.ai.AIPerformanceAdvisor()
     }
 
     @Provides
@@ -185,6 +196,13 @@ object AppModule {
 
     @Provides
     @Singleton
+    @UltrasonicScanner
+    fun provideUltrasonicScanner(@ApplicationContext context: Context): Scanner {
+        return UltrasonicScannerImpl(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideOrientationScanner(@ApplicationContext context: Context): com.examshield.ai.data.scanner.OrientationScannerImpl {
         return com.examshield.ai.data.scanner.OrientationScannerImpl(context)
     }
@@ -224,13 +242,15 @@ object AppModule {
         @WifiScanner wifiScanner: Scanner,
         @WifiDirectScanner wifiDirectScanner: Scanner,
         @MagneticFieldScanner magneticFieldScanner: Scanner,
+        @UltrasonicScanner ultrasonicScanner: Scanner,
         orientationScanner: com.examshield.ai.data.scanner.OrientationScannerImpl,
         adaptiveLearningEngine: AdaptiveLearningEngine,
         orbitalUplink: OrbitalUplink,
         hapticSonarManager: HapticSonarManager,
         swarmMeshService: SwarmMeshService,
         neuralLink: CentralNeuralLink,
-        advisor: com.examshield.ai.domain.ai.AIPerformanceAdvisor
+        advisor: com.examshield.ai.domain.ai.AIPerformanceAdvisor,
+        baselineDao: com.examshield.ai.data.local.dao.BaselineDao
     ): DetectionService {
         return DetectionServiceImpl(
             bleScanner = bleScanner,
@@ -238,13 +258,15 @@ object AppModule {
             wifiScanner = wifiScanner,
             wifiDirectScanner = wifiDirectScanner,
             magneticFieldScanner = magneticFieldScanner,
+            ultrasonicScanner = ultrasonicScanner,
             orientationScanner = orientationScanner,
             classifier = TFLiteDeviceClassifierImpl(EstimateDistanceUseCase(), adaptiveLearningEngine, com.examshield.ai.data.remote.OpenAiIntelligenceServiceImpl()), // Simplified for DI matching
             adaptiveLearningEngine = adaptiveLearningEngine,
             orbitalUplink = orbitalUplink,
             hapticSonarManager = hapticSonarManager,
             swarmMeshService = swarmMeshService,
-            neuralLink = neuralLink
+            neuralLink = neuralLink,
+            baselineDao = baselineDao
         )
     }
 }

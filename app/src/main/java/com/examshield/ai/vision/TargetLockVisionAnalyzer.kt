@@ -42,12 +42,12 @@ class TargetLockVisionAnalyzer : ImageAnalysis.Analyzer {
                     val targets = detectedObjects.map { obj ->
                         val objLabels = obj.labels.map { it.text }
                         val brand = when {
-                            objLabels.any { it.contains("Mobile phone", true) || it.contains("Phone", true) } -> "MOBILE_COMM_DEVICE"
-                            objLabels.any { it.contains("Watch", true) || it.contains("Wearable", true) } -> "WEARABLE_STATION"
-                            objLabels.any { it.contains("Headphones", true) || it.contains("Earbuds", true) } || 
-                            objLabels.any { it.contains("Audio", true) } -> "AUDIO_TRANSCEIVER"
-                            objLabels.any { it.contains("Tablet", true) || it.contains("Computer", true) } -> "COMPUTING_TERMINAL"
-                            objLabels.any { it.contains("Hardware", true) || it.contains("Component", true) } -> "ELECTRONIC_CORE"
+                            objLabels.any { it.contains("Mobile phone", true) || it.contains("Phone", true) || it.contains("Smartphone", true) } -> "MOBILE_COMM_DEVICE"
+                            objLabels.any { it.contains("Watch", true) || it.contains("Wearable", true) || it.contains("Clock", true) } -> "WEARABLE_STATION"
+                            objLabels.any { it.contains("Headphones", true) || it.contains("Earbuds", true) || it.contains("Audio", true) || it.contains("Microphone", true) } -> "AUDIO_TRANSCEIVER"
+                            objLabels.any { it.contains("Tablet", true) || it.contains("Computer", true) || it.contains("Laptop", true) } -> "COMPUTING_TERMINAL"
+                            objLabels.any { it.contains("Hardware", true) || it.contains("Component", true) || it.contains("Electronic", true) || it.contains("Circuit", true) } -> "ELECTRONIC_CORE"
+                            objLabels.any { it.contains("Camera", true) || it.contains("Lens", true) || it.contains("Optical", true) } -> "VISION_SENSOR"
                             else -> null
                         }
                         VisionTarget(

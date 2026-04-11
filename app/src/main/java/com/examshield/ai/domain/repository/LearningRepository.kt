@@ -23,4 +23,8 @@ interface LearningRepository {
     suspend fun addCheatingSignal(signal: ConfirmedCheatingSignal)
     suspend fun getCheatingSignal(hash: String): ConfirmedCheatingSignal?
     suspend fun addDecisionHistory(decision: SignalDecision)
+    
+    // ASTRA V12: FEDERATED LEARNING SUPPORT
+    suspend fun getAllConfirmedCheatingSignals(): List<ConfirmedCheatingSignal>
+    suspend fun prepareFederatedPayload(): String
 }

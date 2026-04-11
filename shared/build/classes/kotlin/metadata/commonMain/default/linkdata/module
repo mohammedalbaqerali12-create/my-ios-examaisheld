@@ -1,0 +1,2 @@
+
+<shared_commonMain>:com.examshield.ai.domain.ai:com.examshield.ai.domain.model:#com.examshield.ai.domain.repository: com.examshield.ai.domain.usecase

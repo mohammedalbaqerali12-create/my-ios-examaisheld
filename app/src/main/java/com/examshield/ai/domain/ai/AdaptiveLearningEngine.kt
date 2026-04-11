@@ -3,6 +3,7 @@ package com.examshield.ai.domain.ai
 import com.examshield.ai.data.local.model.Baseline
 import com.examshield.ai.data.local.model.Scan
 import com.examshield.ai.domain.model.DetectedObject
+import com.examshield.ai.domain.model.SignalTrajectory
 import com.examshield.ai.domain.repository.LearningRepository
 import javax.inject.Inject
 import java.util.concurrent.TimeUnit
@@ -16,6 +17,7 @@ import com.examshield.ai.data.local.model.ConfirmedCheatingSignal
 import com.examshield.ai.data.local.model.SignalDecision
 import com.examshield.ai.domain.model.SupervisorFeedback
 import com.examshield.ai.domain.model.RiskLevel
+import kotlin.math.abs
 
 class AdaptiveLearningEngine @Inject constructor(
     private val learningRepository: com.examshield.ai.domain.repository.LearningRepository,
@@ -71,6 +73,22 @@ class AdaptiveLearningEngine @Inject constructor(
         } else 100.0
 
         val isConsistentStream = recentScans.size > 5 && signalVariance < 15.0
+        
+        val trajectory = when {
+            recentScans.size < 3 -> SignalTrajectory.UNKNOWN
+            signalVariance > 100.0 -> SignalTrajectory.FLUCTUATING
+            else -> {
+                val weights = recentScans.mapIndexed { index, scan -> scan.signalStrength * (index + 1) }
+                val trend = recentScans.zipWithNext { a, b -> b.signalStrength - a.signalStrength }.average()
+                when {
+                    trend > 2.0 -> SignalTrajectory.APPROACHING
+                    trend < -2.0 -> SignalTrajectory.RECEDING
+                    abs(trend) < 0.5 -> SignalTrajectory.STATIC
+                    else -> SignalTrajectory.UNKNOWN
+                }
+            }
+        }
+
         val learnedMatch = matchLearnedRules(detectedObject)
 
         val signalHash = SignalFeatureHasher.hashSignal(detectedObject)
@@ -97,7 +115,8 @@ class AdaptiveLearningEngine @Inject constructor(
             isMarkedCheating = cheatingRecord != null,
             cheatingHitCount = cheatingRecord?.hitCount ?: 0,
             feedbackRiskElevation = feedbackRiskElevation,
-            stability = stability
+            stability = stability,
+            trajectory = trajectory
         )
     }
 
@@ -225,22 +244,37 @@ class AdaptiveLearningEngine @Inject constructor(
                 else -> 0.012
             }
             
+            // --- ASTRA NEXUS: GENETIC MUTATION PROTOCOL ---
+            // AI Self-Development: If system is unstable, it randomly mutates its core DNA thresholds
+            // to find a more optimal configuration automatically (Survival of the fittest).
+            val processNoiseMutation = if (newState == CentralNeuralLink.NeuralState.EVOLVING) {
+                targetProcessNoise * (0.9 + (Math.random() * 0.2)) // Mutate by +/- 10%
+            } else {
+                targetProcessNoise
+            }
+            
             val scanningMultiplier = when(newState) {
                 CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 5.0f
                 CentralNeuralLink.NeuralState.OVERDRIVE -> 2.5f
                 else -> 1.0f
             }
+            
+            val sensitivityMutation = if (hasCheatingSignal) {
+                (current.spectralSensitivity * (1.0f + (Math.random() * 0.15f).toFloat())) // Increase sensitivity slightly 
+            } else {
+                1.0f
+            }
 
             current.copy(
                 aiNeuralState = newState,
-                kalmanProcessNoise = targetProcessNoise,
+                kalmanProcessNoise = processNoiseMutation,
                 scanningSpeedMultiplier = scanningMultiplier,
                 refreshRateHz = when(newState) {
                     CentralNeuralLink.NeuralState.PRIME_SYNERGY -> 120
                     CentralNeuralLink.NeuralState.OVERDRIVE -> 60
                     else -> 30
                 },
-                spectralSensitivity = if (newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) 2.5f else 1.0f,
+                spectralSensitivity = if (newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) sensitivityMutation else 1.0f,
                 temporalSyncActive = newState == CentralNeuralLink.NeuralState.PRIME_SYNERGY
             )
         }
@@ -259,5 +293,6 @@ data class AnalysisContext(
     val isMarkedCheating: Boolean = false,
     val cheatingHitCount: Int = 0,
     val feedbackRiskElevation: Int = 0,
-    val stability: Float = 0f
+    val stability: Float = 0f,
+    val trajectory: SignalTrajectory = SignalTrajectory.UNKNOWN
 )

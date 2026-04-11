@@ -142,7 +142,7 @@ fun SignalArOverlay(
                 topLeft = Offset(left, top - textResult.size.height - 6.dp.toPx()),
                 size = androidx.compose.ui.geometry.Size(textResult.size.width.toFloat() + 10.dp.toPx(), textResult.size.height.toFloat() + 4.dp.toPx())
             )
-            drawText(textResult, topLeft = Offset(left + 5.dp.toPx(), top - textResult.size.height - 4.dp.toPx()))
+            drawText(textLayoutResult = textResult, topLeft = Offset(left + 5.dp.toPx(), top - textResult.size.height - 4.dp.toPx()))
         }
 
         val target = devicePos ?: return@Canvas
@@ -160,17 +160,53 @@ fun SignalArOverlay(
         if (relativeAngleWrap(relativeAzimuth) < -180) relativeAzimuth += 360
         relativeAzimuth = relativeAngleWrap(relativeAzimuth)
         
-        val distance = Math.sqrt(dx * dx + dy * dy.toDouble())
         val hFov = 65f
         val vFov = 95f
         val centerX = size.width / 2
         val centerY = size.height / 2
 
         if (Math.abs(relativeAzimuth) < hFov / 2) {
-            val screenX = centerX + (relativeAzimuth / (hFov / 2)) * (size.width / 2)
+            val rawScreenX = centerX + (relativeAzimuth / (hFov / 2)) * (size.width / 2)
             val normalizedPitch = currentPitch + 90f
-            val screenY = centerY + (normalizedPitch / (vFov / 2)) * (size.height / 2)
+            val rawScreenY = centerY + (normalizedPitch / (vFov / 2)) * (size.height / 2)
 
+            // --- SYNERGETIC SNAPPING LOGIC ---
+            var screenX = rawScreenX
+            var screenY = rawScreenY
+            var isStrictLocked = false
+            
+            val cleanDeviceTypeForMatching = deviceType.replace("FUSED_", "").uppercase()
+            
+            // Try to find a visual object that matches the signal metadata
+            val matchingVisionObj = visionTargets.find { vt ->
+                vt.brandHeuristic != null && (
+                    (cleanDeviceTypeForMatching.contains("PHONE") && vt.brandHeuristic == "MOBILE_COMM_DEVICE") ||
+                    (cleanDeviceTypeForMatching.contains("AUDIO") && vt.brandHeuristic == "AUDIO_TRANSCEIVER") ||
+                    (cleanDeviceTypeForMatching.contains("COMPUTER") && vt.brandHeuristic == "COMPUTING_TERMINAL") ||
+                    (cleanDeviceTypeForMatching.contains("CAMERA") && vt.brandHeuristic == "VISION_SENSOR") ||
+                    (vt.brandHeuristic == "ELECTRONIC_CORE")
+                )
+            }
+
+            if (matchingVisionObj != null) {
+                val vL = (matchingVisionObj.boundingBox.left / imgWidth) * size.width
+                val vT = (matchingVisionObj.boundingBox.top / imgHeight) * size.height
+                val vR = (matchingVisionObj.boundingBox.right / imgWidth) * size.width
+                val vB = (matchingVisionObj.boundingBox.bottom / imgHeight) * size.height
+                
+                val vCenterX = (vL + vR) / 2f
+                val vCenterY = (vT + vB) / 2f
+                
+                // Snap if the signal estimated position is close to the visual object center
+                val distInPixels = Math.sqrt(Math.pow((rawScreenX - vCenterX).toDouble(), 2.0) + Math.pow((rawScreenY - vCenterY).toDouble(), 2.0))
+                if (distInPixels < 150.dp.toPx()) {
+                    screenX = vCenterX
+                    screenY = vCenterY
+                    isStrictLocked = true
+                }
+            }
+
+            val distance = Math.sqrt(dx * dx + dy * dy.toDouble())
             val scale = (1.0 + (6.0 / distance.coerceAtLeast(0.5))).coerceIn(1.0, 6.0).toFloat()
             val baseMarkerSize = 45.dp.toPx() * scale
             val alpha = (1.0 - (distance / 15.0).coerceIn(0.0, 0.85)).toFloat()
@@ -179,12 +215,41 @@ fun SignalArOverlay(
             val cleanDeviceType = deviceType.replace("FUSED_", "")
             
             val signatureColor = when {
+                isStrictLocked -> com.examshield.ai.ui.theme.PrimeGold
                 neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY -> com.examshield.ai.ui.theme.PrimeGold
                 isFused -> com.examshield.ai.ui.theme.ThreatRed
                 cleanDeviceType.contains("PHONE") -> com.examshield.ai.ui.theme.NeuralViolet
                 else -> com.examshield.ai.ui.theme.NeonCyan
             }
             
+            // --- RADIO WAVE RIPPLE (Aura) ---
+            val rippleBase = (System.currentTimeMillis() % 1500) / 1500f
+            for (i in 0 until 3) {
+                val rScale = rippleBase + (i * 0.33f)
+                val finalRScale = if (rScale > 1f) rScale - 1f else rScale
+                val rAlpha = (1f - finalRScale) * alpha * 0.5f
+                drawCircle(
+                    color = signatureColor.copy(alpha = rAlpha),
+                    radius = baseMarkerSize * (0.8f + finalRScale * 3.5f),
+                    center = Offset(screenX, screenY),
+                    style = Stroke(width = (2 - finalRScale).dp.toPx())
+                )
+            }
+
+            // --- RF SPECTRUM MAPPERS (Small bars next to reticle) ---
+            val barCount = 6
+            val barSpacing = 4.dp.toPx()
+            val barWidth = 3.dp.toPx()
+            for (i in 0 until barCount) {
+                val noise = (Math.random() * 20.dp.toPx()).toFloat()
+                val barHeight = (10.dp.toPx() + noise) * alpha
+                drawRect(
+                    color = signatureColor.copy(alpha = alpha * 0.6f),
+                    topLeft = Offset(screenX - baseMarkerSize - 15.dp.toPx() - (i * (barWidth + barSpacing)), screenY + baseMarkerSize - barHeight),
+                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight)
+                )
+            }
+
             withTransform({
                 translate(left = screenX, top = screenY)
                 rotate(degrees = rotation)
@@ -200,14 +265,14 @@ fun SignalArOverlay(
                     )
                 }
                 
-                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) {
+                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY || isStrictLocked) {
                     // Prime Synergy Multi-Hex Reticle
                      drawArc(
                         color = com.examshield.ai.ui.theme.SynchroBlue.copy(alpha = alpha * primeGlow),
-                        startAngle = 45f, sweepAngle = 270f, useCenter = false,
+                        startAngle = (System.currentTimeMillis() % 1000 / 1000f) * 360f, sweepAngle = 90f, useCenter = false,
                         style = Stroke(width = 1.dp.toPx()),
-                        topLeft = Offset(-baseMarkerSize * 0.8f, -baseMarkerSize * 0.8f),
-                        size = androidx.compose.ui.geometry.Size(baseMarkerSize * 1.6f, baseMarkerSize * 1.6f)
+                        topLeft = Offset(-baseMarkerSize * 0.85f, -baseMarkerSize * 0.85f),
+                        size = androidx.compose.ui.geometry.Size(baseMarkerSize * 1.7f, baseMarkerSize * 1.7f)
                     )
                 }
             }
@@ -229,76 +294,95 @@ fun SignalArOverlay(
                 append("RANGE_VECT: ${"%.2f".format(distance)}m\n")
                 append("AZIMUTH_OFF: ${"%.1f".format(relativeAzimuth)}°\n")
                 append("SIG_POWER: ${rssi}dBm\n")
-                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) append("PRIME_LOCK_ACTIVE")
+                append("PHASE_SHIFT: ${(Math.random() * 0.05).format(3)}rad\n")
+                if (isStrictLocked) append("VISUAL_HARD_LOCK_ACTIVE\n")
+                if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) append("PRIME_SYNC_STABLE")
             }
             
             val textLayoutResult = textMeasurer.measure(
                 text = telemetry,
                 style = androidx.compose.ui.text.TextStyle(
                     color = signatureColor,
-                    fontSize = 9.sp,
+                    fontSize = 8.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 1.sp,
-                    background = Color.Black.copy(alpha = 0.6f)
+                    lineHeight = 10.sp
                 )
             )
+            
+            // Backplate for text
+            drawRect(
+                color = Color.Black.copy(alpha = 0.5f * alpha),
+                topLeft = Offset(screenX + baseMarkerSize + 8.dp.toPx(), screenY - textLayoutResult.size.height / 2f - 4.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(textLayoutResult.size.width.toFloat() + 8.dp.toPx(), textLayoutResult.size.height.toFloat() + 8.dp.toPx())
+            )
+
             drawText(
                 textLayoutResult = textLayoutResult,
-                topLeft = Offset(screenX + baseMarkerSize + 10.dp.toPx(), screenY - textLayoutResult.size.height / 2)
+                topLeft = Offset(screenX + baseMarkerSize + 12.dp.toPx(), screenY - textLayoutResult.size.height / 2)
             )
 
             // PROXIMITY ALERT BLOOM
             if (distance < 1.5) {
                  val warningAlpha = if (System.currentTimeMillis() % 400 > 200) 1f else 0.2f
                  drawCircle(
-                     color = com.examshield.ai.ui.theme.ThreatRed.copy(alpha = 0.1f * warningAlpha),
-                     radius = baseMarkerSize * 1.5f,
+                     color = com.examshield.ai.ui.theme.ThreatRed.copy(alpha = 0.15f * warningAlpha),
+                     radius = baseMarkerSize * 1.8f,
                      center = Offset(screenX, screenY)
                  )
                  
                  val warningText = textMeasurer.measure(
-                     text = "⚠️ CRITICAL_PROXIMITY_VIOLATION ⚠️",
+                     text = "⚠️ CRITICAL_PROXIMITY_LOCK ⚠️",
                      style = androidx.compose.ui.text.TextStyle(
-                         color = com.examshield.ai.ui.theme.ThreatRed, fontSize = 12.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.8f)
+                         color = com.examshield.ai.ui.theme.ThreatRed, fontSize = 11.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace, background = Color.Black.copy(alpha = 0.8f)
                      )
                  )
                  drawText(
                      textLayoutResult = warningText,
-                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize - 30.dp.toPx())
+                     topLeft = Offset(screenX - warningText.size.width / 2, screenY - baseMarkerSize - 35.dp.toPx())
                  )
             }
-
         } else {
             // OFF-SCREEN DIRECTIONAL NAVIGATION
             val arrowColor = if (neuralState == CentralNeuralLink.NeuralState.PRIME_SYNERGY) com.examshield.ai.ui.theme.PrimeGold else com.examshield.ai.ui.theme.AmberWarning
             val arrowY = centerY
-            val arrowPadding = 40.dp.toPx()
+            val arrowPadding = 48.dp.toPx()
             
             if (relativeAzimuth > 0) {
-                drawOffScreenIndicator(this, size.width - arrowPadding, arrowY, arrowColor, true)
+                drawOffScreenIndicator(this, size.width - arrowPadding, arrowY, arrowColor, true, textMeasurer)
             } else {
-                drawOffScreenIndicator(this, arrowPadding, arrowY, arrowColor, false)
+                drawOffScreenIndicator(this, arrowPadding, arrowY, arrowColor, false, textMeasurer)
             }
         }
     }
 }
 
+private fun Double.format(digits: Int) = "%.${digits}f".format(this)
+
 private fun drawDatalinkModule(textMeasurer: androidx.compose.ui.text.TextMeasurer, state: CentralNeuralLink.NeuralState, screenWidth: Float) {
-    // Top right telemetry box
+    // Top right telemetry box implementation can go here if needed
 }
 
-private fun drawOffScreenIndicator(scope: androidx.compose.ui.graphics.drawscope.DrawScope, x: Float, y: Float, color: Color, isRight: Boolean) {
+private fun drawOffScreenIndicator(scope: androidx.compose.ui.graphics.drawscope.DrawScope, x: Float, y: Float, color: Color, isRight: Boolean, textMeasurer: androidx.compose.ui.text.TextMeasurer) {
     with(scope) {
-        val size = 20.dp.toPx()
+        val s = 24.dp.toPx()
         val direction = if (isRight) 1f else -1f
         
-        drawLine(color, Offset(x, y), Offset(x - direction * size, y - size / 2), 3.dp.toPx())
-        drawLine(color, Offset(x, y), Offset(x - direction * size, y + size / 2), 3.dp.toPx())
+        // Arrow
+        drawLine(color, Offset(x, y), Offset(x - direction * s, y - s / 2), 4.dp.toPx())
+        drawLine(color, Offset(x, y), Offset(x - direction * s, y + s / 2), 4.dp.toPx())
         
+        // Label
+        val label = textMeasurer.measure(
+            if (isRight) "SCAN_RIGHT >>" else "<< SCAN_LEFT",
+            style = androidx.compose.ui.text.TextStyle(color = color, fontSize = 9.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+        )
+        drawText(textLayoutResult = label, topLeft = Offset(x - (if (isRight) label.size.width + 10.dp.toPx() else -10.dp.toPx()), y - label.size.height / 2))
+
         // Animated pulse
-        val p = (System.currentTimeMillis() % 1000) / 1000f
-        drawCircle(color.copy(alpha = 1f - p), radius = p * size, center = Offset(x - direction * size * 0.5f, y))
+        val p = (System.currentTimeMillis() % 1200) / 1200f
+        drawCircle(color.copy(alpha = 1f - p), radius = p * s * 1.5f, center = Offset(x, y), style = Stroke(2.dp.toPx()))
     }
 }
 

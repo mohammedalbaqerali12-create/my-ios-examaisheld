@@ -12,6 +12,11 @@ object VibrationHelper {
         vibrate(80L)
     }
 
+    fun vibrateThreatPulse() {
+        val effect = longArrayOf(0, 150, 100, 150)
+        vibrate(effect, -1)
+    }
+
     fun vibrateSuccess() {
         val effect = longArrayOf(0, 100, 50, 100)
         vibrate(effect, -1)

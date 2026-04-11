@@ -1,0 +1,318 @@
+Downloading https://services.gradle.org/distributions/gradle-8.7-bin.zip
+............10%.............20%.............30%.............40%............50%.............60%.............70%.............80%.............90%............100%
+
+Welcome to Gradle 8.7!
+
+Here are the highlights of this release:
+ - Compiling and testing with Java 22
+ - Cacheable Groovy script compilation
+ - New methods in lazy collection properties
+
+For more details see https://docs.gradle.org/8.7/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Configure project :
+w: file:///Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/build.gradle.kts:14:24: 'getter for buildDir: File!' is deprecated. Deprecated in Java
+
+> Configure project :shared
+w: file:///Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build.gradle.kts:9:13: 'kotlinOptions(KotlinJvmOptions.() -> Unit): Unit' is deprecated. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln
+
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:compileKotlinIosArm64
+Downloading native dependencies (LLVM, sysroot etc). This is a one-time action performed only on the first run of the compiler.
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/apple-llvm-20200714-macos-aarch64-essentials.tar.gz into /Users/runner/.konan/dependencies
+Done.
+Extracting dependency: /Users/runner/.konan/dependencies/cache/libffi-3.3-1-macos-arm64.tar.gz into /Users/runner/.konan/dependencies
+
+> Task :shared:xcodeVersion
+w: Kotlin <-> Xcode compatibility issue:
+The selected Xcode version (16.4) is higher than the maximum known to the Kotlin Gradle Plugin.
+Stability in such configuration hasn't been tested, please report encountered issues to https://kotl.in/issue
+
+Maximum tested Xcode version: 15.3
+
+To suppress this message add 'kotlin.apple.xcodeCompatibility.nowarn=true' to your gradle.properties
+
+
+> Task :shared:linkDebugFrameworkIosArm64
+w: The number of threads 4 is more than the number of processors 3
+
+BUILD SUCCESSFUL in 1m 50s
+3 actionable tasks: 3 executed
+⚙️  Generating plists...
+⚙️  Generating project...
+⚙️  Writing project...
+Created project at /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+Command line invocation:
+    /Applications/Xcode_16.4.app/Contents/Developer/usr/bin/xcodebuild -project EXAMSHIELDAI_iOS.xcodeproj -scheme iosApp -configuration Debug -sdk iphoneos -destination generic/platform=iOS SYMROOT=/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build OBJROOT=/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
+
+Build settings from command line:
+    CODE_SIGN_IDENTITY = 
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    OBJROOT = /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build
+    SDKROOT = iphoneos18.5
+    SYMROOT = /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build
+
+note: Using codesigning identity override: 
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'iosApp' in project 'EXAMSHIELDAI_iOS' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 2948a264eec86608f03b931abaa654d0
+Build description path: /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/XCBuildData/2948a264eec86608f03b931abaa654d0.xcbuilddata
+ClangStatCache /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk /Users/runner/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-a529daf784b3616c7c04a36aeb7f5c05.sdkstatcache
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -o /Users/runner/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-a529daf784b3616c7c04a36aeb7f5c05.sdkstatcache
+
+CreateBuildDirectory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+    builtin-create-build-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/EXAMSHIELDAI_iOS-7e35728c8395ac446a53cf46f903e493-VFS-iphoneos/all-product-headers.yaml
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/EXAMSHIELDAI_iOS-7e35728c8395ac446a53cf46f903e493-VFS-iphoneos/all-product-headers.yaml
+
+CreateBuildDirectory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EagerLinkingTBDs/Debug-iphoneos
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+    builtin-create-build-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EagerLinkingTBDs/Debug-iphoneos
+
+CreateBuildDirectory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/EXAMSHIELDAI_iOS.xcodeproj
+    builtin-create-build-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyStaticMetadataFileList (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyMetadataFileList (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-project-headers.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-project-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-own-target-headers.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-own-target-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-generated-files.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-generated-files.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-target-headers.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-target-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-non-framework-target-headers.hmap (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-non-framework-target-headers.hmap
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibPath-normal-arm64.txt (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibPath-normal-arm64.txt
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibInstallName-normal-arm64.txt (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibInstallName-normal-arm64.txt
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_const_extract_protocols.json (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftConstValuesFileList (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.LinkFileList (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.LinkFileList
+
+WriteAuxiliaryFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-OutputFileMap.json (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    write-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-OutputFileMap.json
+
+MkDir /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /bin/mkdir -p /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks
+
+MkDir /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /bin/mkdir -p /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app
+
+Ld /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/__preview.dylib normal (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios15.0 -dynamiclib -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -O0 -L/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F../shared/build/bin/iosArm64/debugFramework -install_name @rpath/iosApp.debug.dylib -dead_strip -rdynamic -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_dependency_info.dat -o /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/__preview.dylib
+
+SwiftDriver iosApp normal arm64 com.apple.xcode.tools.swift.compiler (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-SwiftDriver -- /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name iosApp -Onone -enforce-exclusivity\=checked @/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -target arm64-apple-ios15.0 -g -module-cache-path /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/runner/Library/Developer/Xcode/DerivedData/EXAMSHIELDAI_iOS-cpwmnkuijysfuwfrqxilakagjdhb/Index.noindex/DataStore -swift-version 5 -I /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F ../shared/build/bin/iosArm64/debugFramework -c -j3 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/runner/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-a529daf784b3616c7c04a36aeb7f5c05.sdkstatcache -output-file-map /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-generated-files.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-own-target-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-project-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/include -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-Swift.h -working-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp -experimental-emit-module-separately -disable-cmo
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ iosApp (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+EmitSwiftModule normal arm64 (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    
+
+SwiftCompile normal arm64 Compiling\ ContentView.swift /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/ContentView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+SwiftCompile normal arm64 /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/ContentView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    
+
+SwiftCompile normal arm64 Compiling\ TacticalRadarView.swift /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/TacticalRadarView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+SwiftCompile normal arm64 /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/TacticalRadarView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    
+
+SwiftCompile normal arm64 Compiling\ iosApp.swift /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/iosApp.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+SwiftCompile normal arm64 /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/iosApp.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    
+
+SwiftDriverJobDiscovery normal arm64 Emitting module for iosApp (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+SwiftDriver\ Compilation\ Requirements iosApp normal arm64 com.apple.xcode.tools.swift.compiler (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-Swift-Compilation-Requirements -- /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name iosApp -Onone -enforce-exclusivity\=checked @/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -target arm64-apple-ios15.0 -g -module-cache-path /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/runner/Library/Developer/Xcode/DerivedData/EXAMSHIELDAI_iOS-cpwmnkuijysfuwfrqxilakagjdhb/Index.noindex/DataStore -swift-version 5 -I /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F ../shared/build/bin/iosArm64/debugFramework -c -j3 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/runner/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-a529daf784b3616c7c04a36aeb7f5c05.sdkstatcache -output-file-map /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-generated-files.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-own-target-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-project-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/include -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-Swift.h -working-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp -experimental-emit-module-separately -disable-cmo
+
+SwiftDriverJobDiscovery normal arm64 Compiling iosApp.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+SwiftMergeGeneratedHeaders /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources/iosApp-Swift.h /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-Swift.h (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-swiftHeaderTool -arch arm64 /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-Swift.h -o /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources/iosApp-Swift.h
+
+Copy /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.swiftmodule /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.swiftmodule
+
+Copy /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftdoc (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftdoc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.swiftdoc
+
+Copy /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.abi.json (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.abi.json /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/arm64-apple-ios.abi.json
+
+SwiftDriverJobDiscovery normal arm64 Compiling TacticalRadarView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+Copy /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftsourceinfo (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftsourceinfo /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+
+SwiftDriverJobDiscovery normal arm64 Compiling ContentView.swift (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+SwiftDriver\ Compilation iosApp normal arm64 com.apple.xcode.tools.swift.compiler (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-Swift-Compilation -- /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name iosApp -Onone -enforce-exclusivity\=checked @/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -target arm64-apple-ios15.0 -g -module-cache-path /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/runner/Library/Developer/Xcode/DerivedData/EXAMSHIELDAI_iOS-cpwmnkuijysfuwfrqxilakagjdhb/Index.noindex/DataStore -swift-version 5 -I /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F ../shared/build/bin/iosArm64/debugFramework -c -j3 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/runner/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-a529daf784b3616c7c04a36aeb7f5c05.sdkstatcache -output-file-map /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/runner/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-generated-files.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-own-target-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-project-headers.hmap -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/include -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp-Swift.h -working-directory /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp -experimental-emit-module-separately -disable-cmo
+
+Ld /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp.debug.dylib normal (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios15.0 -dynamiclib -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -O0 -L/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EagerLinkingTBDs/Debug-iphoneos -L/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EagerLinkingTBDs/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F../shared/build/bin/iosArm64/debugFramework -filelist /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.LinkFileList -install_name @rpath/iosApp.debug.dylib -Xlinker -rpath -Xlinker @executable_path/Frameworks -dead_strip -Xlinker -object_path_lto -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_lto.o -rdynamic -Xlinker -no_deduplicate -Xlinker -dependency_info -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.swiftmodule -Xlinker -alias -Xlinker _main -Xlinker ___debug_main_executable_dylib_entry_point -framework shared -o /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp.debug.dylib
+
+ConstructStubExecutorLinkFileList /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-ExecutorLinkFileList-normal-arm64.txt (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    construct-stub-executor-link-file-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp.debug.dylib /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/libPreviewsJITStubExecutor_no_swift_entry_point.a /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/libPreviewsJITStubExecutor.a --output /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-ExecutorLinkFileList-normal-arm64.txt
+note: Using stub executor library with Swift entry point. (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+Ld /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp normal (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios15.0 -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -O0 -L/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos -F/Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework -F../shared/build/bin/iosArm64/debugFramework -Xlinker -rpath -Xlinker @executable_path -Xlinker -rpath -Xlinker @executable_path/Frameworks -rdynamic -Xlinker -no_deduplicate -e ___debug_blank_executor_main -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_dylib -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibPath-normal-arm64.txt -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __debug_instlnm -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-DebugDylibInstallName-normal-arm64.txt -Xlinker -filelist -Xlinker /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp-ExecutorLinkFileList-normal-arm64.txt /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp.debug.dylib -o /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp
+
+Copy /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks/shared.framework /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework/shared.framework (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -exclude Headers -exclude PrivateHeaders -exclude Modules -exclude \*.tbd -bitcode-strip all -bitcode-strip-tool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip -resolve-src-symlinks -remove-static-executable /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework/shared.framework /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks
+note: Injecting stub binary into codeless framework (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -x c -c /dev/null -target arm64-apple-ios12.0 -o /private/var/folders/t5/f77_gwnj6p95qxy9py3fckx00000gn/T/swbuild.tmp.HqzaWzFA/Data.noindex/arm64-apple.o
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -isysroot /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -dynamiclib -Xlinker -adhoc_codesign -target arm64-apple-ios12.0 -o /private/var/folders/t5/f77_gwnj6p95qxy9py3fckx00000gn/T/swbuild.tmp.HqzaWzFA/Data.noindex/arm64-apple /private/var/folders/t5/f77_gwnj6p95qxy9py3fckx00000gn/T/swbuild.tmp.HqzaWzFA/Data.noindex/arm64-apple.o
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo -create -output /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks/shared.framework/shared /private/var/folders/t5/f77_gwnj6p95qxy9py3fckx00000gn/T/swbuild.tmp.HqzaWzFA/Data.noindex/arm64-apple
+
+ProcessInfoPlistFile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Info.plist /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/Info.plist (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-infoPlistUtility /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/iosApp/Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/PkgInfo -expandbuildsettings -format binary -platform iphoneos -scanforprivacyfile /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks/shared.framework -requiredArchitecture arm64 -o /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Info.plist
+
+ExtractAppIntentsMetadata (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name iosApp --sdk-root /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk --xcode-version 16F6 --platform-family iOS --deployment-target 15.0 --bundle-identifier com.examshield.ai.iosApp --output /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app --target-triple arm64-apple-ios15.0 --binary-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp --dependency-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp_dependency_info.dat --stringsdata-file /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftFileList --metadata-file-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/Objects-normal/arm64/iosApp.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-03-24 22:10:13.070 appintentsmetadataprocessor[5405:19414] Starting appintentsmetadataprocessor export
+2026-03-24 22:10:13.072 appintentsmetadataprocessor[5405:19414] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+CopySwiftLibs /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/iosApp.debug.dylib --scan-folder /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks --scan-folder /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/PlugIns --scan-folder /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/SystemExtensions --scan-folder /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Extensions --scan-folder /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/shared/build/bin/iosArm64/debugFramework/shared.framework --platform iphoneos --toolchain /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+Ignoring --strip-bitcode because --sign was not passed
+
+AppIntentsSSUTraining (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Info.plist --temp-dir-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/ssu --bundle-id com.examshield.ai.iosApp --product-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app --extracted-metadata-path /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app/Metadata.appintents --metadata-file-list /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/EXAMSHIELDAI_iOS.build/Debug-iphoneos/iosApp.build/iosApp.DependencyMetadataFileList --archive-ssu-assets
+2026-03-24 22:10:13.099 appintentsnltrainingprocessor[5406:19423] Parsing options for appintentsnltrainingprocessor
+2026-03-24 22:10:13.100 appintentsnltrainingprocessor[5406:19423] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-RegisterExecutionPolicyException /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app
+
+Validate /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    builtin-validationUtility /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app -infoplist-subpath Info.plist
+warning: All interface orientations must be supported unless the app requires full screen. (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+warning: A launch configuration or launch storyboard or xib must be provided unless the app requires full screen. (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+
+Touch /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app (in target 'iosApp' from project 'EXAMSHIELDAI_iOS')
+    cd /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp
+    /usr/bin/touch -c /Users/runner/work/my-ios-examaisheld/my-ios-examaisheld/iosApp/build/Debug-iphoneos/iosApp.app
+
+** BUILD SUCCEEDED **
+
+PACKAGING APP FROM: build/Debug-iphoneos/iosApp.app
+4.2M	build/Debug-iphoneos/iosApp.app
+iosApp.app
+
+Payload/iosApp.app:
+__preview.dylib
+Frameworks
+Info.plist
+iosApp
+iosApp.debug.dylib
+PkgInfo
+
+Payload/iosApp.app/Frameworks:
+shared.framework
+
+Payload/iosApp.app/Frameworks/shared.framework:
+Info.plist
+shared
+-rw-r--r--  1 runner  staff   1.0M Mar 24 22:10 examshield_ios_app.ipa

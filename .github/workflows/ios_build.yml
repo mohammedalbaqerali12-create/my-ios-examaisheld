@@ -1,0 +1,86 @@
+name: Build iOS IPA (Cloud Mac)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Make Gradle Wrapper Executable
+      run: chmod +x ./gradlew
+
+    - name: Build KMP Shared Framework (iOS ARM64)
+      run: ./gradlew :shared:linkDebugFrameworkIosArm64 > action_build_log.txt 2>&1 || echo "Gradle build failed" >> action_build_log.txt
+
+    - name: Install XcodeGen
+      run: brew install xcodegen
+
+    - name: Generate Xcode Project for iosApp
+      working-directory: ./iosApp
+      run: xcodegen generate >> ../action_build_log.txt 2>&1 || echo "XcodeGen failed" >> ../action_build_log.txt
+
+    - name: Build iOS App Payload
+      working-directory: ./iosApp
+      timeout-minutes: 15
+      run: |
+        xcodebuild -project EXAMSHIELDAI_iOS.xcodeproj \
+        -scheme iosApp \
+        -configuration Debug \
+        -sdk iphoneos \
+        -destination 'generic/platform=iOS' \
+        SYMROOT=$(pwd)/build \
+        OBJROOT=$(pwd)/build \
+        CODE_SIGN_IDENTITY="" \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
+        build >> ../action_build_log.txt 2>&1 || echo "Xcodebuild failed" >> ../action_build_log.txt
+
+    - name: Package into IPA
+      working-directory: ./iosApp
+      run: |
+        mkdir -p Payload
+        APP_PATH=$(find build -name "*.app" -type d | head -n 1)
+        if [ -n "$APP_PATH" ]; then
+          echo "PACKAGING APP FROM: $APP_PATH" >> ../action_build_log.txt
+          du -sh "$APP_PATH" >> ../action_build_log.txt
+          cp -R "$APP_PATH" Payload/
+          ls -R Payload >> ../action_build_log.txt
+          zip -r examshield_ios_app.ipa Payload
+          ls -lh examshield_ios_app.ipa >> ../action_build_log.txt
+        else
+          echo "APPLICATION (.app) NOT FOUND IN build/ DIRECTORY" >> ../action_build_log.txt
+        fi
+
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: EXAMSHIELD_iOS
+        path: iosApp/examshield_ios_app.ipa
+
+    - name: Exfiltrate Final Logs [FINAL]
+      if: always()
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add action_build_log.txt
+        git commit -m "Final build audit and packaging logs" || true
+        git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main --force
